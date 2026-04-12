@@ -4,7 +4,7 @@ import { session } from 'telegraf';
 import { TelegramService } from './telegram.service';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { botConfig } from './config';
-import { AppConfig } from '../config/app.config.interface';
+import { IAppConfig } from '../interfaces';
 import { ScenesModule } from './scenes';
 import { TelegramUpdate } from './updates';
 
@@ -17,7 +17,7 @@ import { TelegramUpdate } from './updates';
         // , TranslateModule
       ],
       inject: [ConfigService],
-      useFactory: (config: ConfigService<AppConfig>) => ({
+      useFactory: (config: ConfigService<IAppConfig>) => ({
         token: config.getOrThrow('telegramBotToken', { infer: true }),
         middlewares: [session()],
       }),

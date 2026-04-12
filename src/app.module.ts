@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import appConfig, { validationSchema } from './config/app.config';
-import { TelegramModule } from './telegram/telegram.module';
+import { TelegramModule } from './telegram';
 
 @Module({
   imports: [

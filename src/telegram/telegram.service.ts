@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Telegraf } from 'telegraf';
 import { ConfigService } from '@nestjs/config';
-import { AppConfig } from '../config/app.config.interface';
+import { IAppConfig } from '../interfaces';
 import { InjectBot } from 'nestjs-telegraf';
 import { botConfig } from './config';
 import { InlineKeyboardMarkup, ReplyKeyboardMarkup } from 'telegraf/types';
@@ -17,7 +17,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TelegramService.name);
 
   constructor(
-    private readonly config: ConfigService<AppConfig>,
+    private readonly config: ConfigService<IAppConfig>,
     @InjectBot(botConfig.NAME) private readonly bot: Telegraf<BotContext>,
   ) {}
 
