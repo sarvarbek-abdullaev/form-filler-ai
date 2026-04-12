@@ -1101,6 +1101,11 @@
   resolved "https://registry.yarnpkg.com/@standard-schema/spec/-/spec-1.1.0.tgz#a79b55dbaf8604812f52d140b2c9ab41bc150bb8"
   integrity sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==
 
+"@telegraf/session@^2.0.0-beta.7":
+  version "2.0.0-beta.7"
+  resolved "https://registry.yarnpkg.com/@telegraf/session/-/session-2.0.0-beta.7.tgz#9e719e9a93035f9793f26992f4726accf492387c"
+  integrity sha512-467OC/VLHDC9hRqTetvXp3pBOSdgxDzYjSuWFXY9v64m453HRxE4tYCnLLFVktOvLWDm+he7Hhv/+e+lmz8atQ==
+
 "@telegraf/types@^7.1.0":
   version "7.1.0"
   resolved "https://registry.yarnpkg.com/@telegraf/types/-/types-7.1.0.tgz#d8bd9b2f5070b4de46971416e890338cd89fc23d"

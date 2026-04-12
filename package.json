@@ -28,6 +28,7 @@
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@telegraf/session": "^2.0.0-beta.7",
     "joi": "^18.1.2",
     "nestjs-telegraf": "^2.9.1",
     "reflect-metadata": "^0.2.2",

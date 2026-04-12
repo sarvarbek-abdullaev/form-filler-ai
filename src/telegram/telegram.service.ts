@@ -1,26 +1,45 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { Telegraf } from 'telegraf';
 import { ConfigService } from '@nestjs/config';
 import { AppConfig } from '../config/app.config.interface';
-import { createBot } from './bot/bot.factory';
+import { InjectBot } from 'nestjs-telegraf';
+import { botConfig } from './config';
+import { InlineKeyboardMarkup, ReplyKeyboardMarkup } from 'telegraf/types';
+import { BotContext } from './interfaces';
 
 @Injectable()
 export class TelegramService implements OnModuleInit, OnModuleDestroy {
-  private bot: Telegraf;
+  private readonly logger = new Logger(TelegramService.name);
 
-  constructor(private readonly config: ConfigService<AppConfig>) {}
+  constructor(
+    private readonly config: ConfigService<AppConfig>,
+    @InjectBot(botConfig.NAME) private readonly bot: Telegraf<BotContext>,
+  ) {}
+
+  async sendMessage(
+    ctx: BotContext,
+    text: string,
+    keyboard: { reply_markup: InlineKeyboardMarkup | ReplyKeyboardMarkup },
+  ) {
+    const chatId = ctx.chat?.id ?? '';
+
+    await this.bot.telegram.sendMessage(chatId, text, {
+      parse_mode: 'HTML',
+      ...keyboard,
+    });
+  }
 
   async onModuleInit() {
-    const token = this.config.getOrThrow('telegramBotToken', { infer: true });
-
-    this.bot = createBot(token);
-
-    await this.bot.launch();
-
-    console.log('🤖 Telegraf bot started');
+    const botInfo = await this.bot.telegram.getMe();
+    this.logger.log(`Bot @${botInfo.username} is up and listening ✅`);
   }
 
   onModuleDestroy() {
-    this.bot.stop();
+    this.bot.stop('Server is shutting down...');
   }
 }
