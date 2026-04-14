@@ -2,12 +2,15 @@ import { Wizard, WizardStep } from 'nestjs-telegraf';
 import { Logger } from '@nestjs/common';
 import type { BotContext } from '../../interfaces';
 import { SCENES } from '../../config';
+import { UserService } from '../../../user';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 @Wizard(SCENES.AUTH)
 export class AuthScene {
   private readonly logger = new Logger(AuthScene.name);
+
+  constructor(private readonly userService: UserService) {}
 
   @WizardStep(1)
   async askUsername(ctx: BotContext) {
@@ -42,7 +45,18 @@ export class AuthScene {
 
     ctx.session.userEmail = text;
 
-    // await this.authService.register(ctx.session);
+    try {
+      await this.userService.createUser({
+        name: ctx.session.userName,
+        email: ctx.session.userEmail,
+      });
+    } catch {
+      await ctx.reply(
+        'Something went wrong. Please try again later or contact support.',
+      );
+      await ctx.scene.leave();
+      return;
+    }
 
     this.logger.log(`User ${ctx.session.userName} registered`);
 

@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { HomeScene } from './home/home.scene';
 import { AuthScene } from './auth/auth.scene';
 import { DashboardScene } from './dashboard/dashboard.scene';
+import { UserModule } from '../../user';
 
 @Module({
+  imports: [UserModule],
   providers: [HomeScene, AuthScene, DashboardScene],
   exports: [HomeScene, AuthScene, DashboardScene],
 })
