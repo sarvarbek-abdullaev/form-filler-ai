@@ -13,7 +13,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { Prisma, User } from '../generated/prisma/client';
+import { Prisma, User } from '../../../generated/prisma/client';
 
 @Controller('users')
 export class UserController {
