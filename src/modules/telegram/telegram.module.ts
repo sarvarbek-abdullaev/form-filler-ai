@@ -4,7 +4,7 @@ import { session } from 'telegraf';
 import { TelegramService } from './telegram.service';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { botConfig } from './config';
-import { IAppConfig } from '../interfaces';
+import { IAppConfig } from '../../common';
 import { ScenesModule } from './scenes';
 import { TelegramUpdate } from './updates';
 

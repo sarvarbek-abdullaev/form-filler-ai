@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Telegraf } from 'telegraf';
 import { ConfigService } from '@nestjs/config';
-import { IAppConfig } from '../interfaces';
+import { IAppConfig } from '../../common';
 import { InjectBot } from 'nestjs-telegraf';
 import { botConfig } from './config';
 import { InlineKeyboardMarkup, ReplyKeyboardMarkup } from 'telegraf/types';
