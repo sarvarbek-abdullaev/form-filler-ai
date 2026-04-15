@@ -7,6 +7,7 @@ export const validationSchema = Joi.object({
   DATABASE_URL: Joi.string().required(),
   ADMIN_GROUP_ID: Joi.number().required(),
   CARD_NUMBER: Joi.string().required(),
+  ADMINS: Joi.string().required(),
 });
 
 export default (): IAppConfig => ({
@@ -15,4 +16,5 @@ export default (): IAppConfig => ({
   databaseUrl: process.env.DATABASE_URL || '',
   adminGroupId: process.env.ADMIN_GROUP_ID || '',
   cardNumber: process.env.CARD_NUMBER || '',
+  admins: process.env.ADMINS || '',
 });

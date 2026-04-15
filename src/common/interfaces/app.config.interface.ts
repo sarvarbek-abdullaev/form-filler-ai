@@ -4,4 +4,5 @@ export interface IAppConfig {
   adminGroupId: string;
   databaseUrl: string;
   cardNumber: string;
+  admins: string;
 }

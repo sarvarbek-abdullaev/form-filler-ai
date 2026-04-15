@@ -1,10 +1,11 @@
-import { Start, Update, Action, Ctx } from 'nestjs-telegraf';
-import { Logger } from '@nestjs/common';
+import { Start, Update, Action, Ctx, Command, Context } from 'nestjs-telegraf';
+import { Logger, UseGuards } from '@nestjs/common';
 import type { BotContext } from '../interfaces';
 import { SCENES } from '../config';
 import { Public } from '../decorators';
 import { UserService } from '../../user';
 import { BalanceService } from '../../balance';
+import { AdminGuard } from '../decorators/admin.decorator';
 
 @Public()
 @Update()
@@ -18,7 +19,7 @@ export class TelegramUpdate {
 
   @Start()
   async start(ctx: BotContext) {
-    this.logger.log(`START - ${ctx.updateType}`);
+    this.logger.log(`START - ${ctx.from?.id}`);
 
     if (!ctx.session.userId) {
       const account = await this.userService.findAccountByTelegram(
@@ -42,6 +43,12 @@ export class TelegramUpdate {
 
     await ctx.reply('👋 Welcome! Please register to continue.');
     await ctx.scene.enter(SCENES.AUTH);
+  }
+
+  @Command('admin')
+  @UseGuards(AdminGuard)
+  async switchToAdmin(@Context() ctx: BotContext) {
+    await ctx.reply("You're now in admin mode.");
   }
 
   @Action(/topup_approve:(\d+)/)
