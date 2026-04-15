@@ -35,13 +35,14 @@ model Balance {
 }
 
 model Transaction {
-  id        Int             @id @default(autoincrement())
-  amount    Decimal         @db.Decimal(10, 2)
+  id        Int               @id @default(autoincrement())
+  amount    Decimal           @db.Decimal(10, 2)
   type      TransactionType
+  status    TransactionStatus @default(APPROVED)
+  fileId    String?
   note      String?
-  createdAt DateTime        @default(now())
-  // 
-  balance   Balance         @relation(fields: [balanceId], references: [id])
+  createdAt DateTime          @default(now())
+  balance   Balance           @relation(fields: [balanceId], references: [id])
   balanceId Int
 }
 
@@ -59,4 +60,10 @@ model Account {
 enum TransactionType {
   CREDIT
   DEBIT
+}
+
+enum TransactionStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

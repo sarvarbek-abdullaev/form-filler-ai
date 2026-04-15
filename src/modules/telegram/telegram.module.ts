@@ -10,6 +10,7 @@ import { TelegramUpdate } from './updates';
 import { APP_GUARD } from '@nestjs/core';
 import { TelegramAuthGuard } from './guards';
 import { UserModule } from '../user';
+import { BalanceModule } from '../balance';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { UserModule } from '../user';
     }),
     ScenesModule,
     UserModule,
+    BalanceModule,
   ],
   providers: [
     TelegramService,

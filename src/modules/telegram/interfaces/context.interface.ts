@@ -6,6 +6,7 @@ export interface BotSession extends Scenes.WizardSession<Scenes.WizardSessionDat
   userEmail?: string;
   mode?: 'edit_name' | 'edit_email';
   isAuth?: boolean;
+  topUpAmount?: number;
 }
 
 export interface BotContext extends Scenes.WizardContext {
