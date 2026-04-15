@@ -7,6 +7,9 @@ import { botConfig } from './config';
 import { IAppConfig } from '../../common';
 import { ScenesModule } from './scenes';
 import { TelegramUpdate } from './updates';
+import { APP_GUARD } from '@nestjs/core';
+import { TelegramAuthGuard } from './guards';
+import { UserModule } from '../user';
 
 @Module({
   imports: [
@@ -23,7 +26,15 @@ import { TelegramUpdate } from './updates';
       }),
     }),
     ScenesModule,
+    UserModule,
   ],
-  providers: [TelegramService, TelegramUpdate],
+  providers: [
+    TelegramService,
+    TelegramUpdate,
+    {
+      provide: APP_GUARD,
+      useClass: TelegramAuthGuard,
+    },
+  ],
 })
 export class TelegramModule {}

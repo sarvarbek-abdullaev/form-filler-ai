@@ -3,9 +3,11 @@ import { Logger } from '@nestjs/common';
 import type { BotContext } from '../../interfaces';
 import { SCENES } from '../../config';
 import { UserService } from '../../../user';
+import { Public } from '../../decorators';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+@Public()
 @Wizard(SCENES.AUTH)
 export class AuthScene {
   private readonly logger = new Logger(AuthScene.name);
@@ -46,21 +48,21 @@ export class AuthScene {
     ctx.session.userEmail = text;
 
     try {
-      await this.userService.createUser({
-        name: ctx.session.userName,
-        email: ctx.session.userEmail,
-      });
-    } catch {
-      await ctx.reply(
-        'Something went wrong. Please try again later or contact support.',
+      await this.userService.findOrCreateByTelegram(
+        String(ctx.from?.id ?? ''),
+        {
+          email: ctx.session.userEmail,
+          name: ctx.session.userName,
+        },
       );
+
+      this.logger.log(`User ${ctx.session.userName} registered`);
+      await ctx.reply('✅ Registration completed');
+      await ctx.scene.enter(SCENES.DASHBOARD);
+    } catch (error) {
+      this.logger.error(error);
+      await ctx.reply('❌ Something went wrong. Please try again with /start');
       await ctx.scene.leave();
-      return;
     }
-
-    this.logger.log(`User ${ctx.session.userName} registered`);
-
-    await ctx.reply('✅ Registration completed');
-    await ctx.scene.enter(SCENES.DASHBOARD);
   }
 }

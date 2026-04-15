@@ -14,6 +14,39 @@ export class UserService {
     });
   }
 
+  async findAccountByTelegram(telegramId: string) {
+    return this.prisma.account.findUnique({
+      where: {
+        provider_providerId: { provider: 'telegram', providerId: telegramId },
+      },
+      include: { user: true },
+    });
+  }
+
+  async findOrCreateByTelegram(
+    telegramId: string,
+    data: { email: string; name?: string },
+  ): Promise<User> {
+    const existing = await this.prisma.account.findUnique({
+      where: {
+        provider_providerId: { provider: 'telegram', providerId: telegramId },
+      },
+      include: { user: true },
+    });
+
+    if (existing) return existing.user;
+
+    return this.prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+        accounts: {
+          create: { provider: 'telegram', providerId: telegramId },
+        },
+      },
+    });
+  }
+
   async getUsers(params: {
     skip?: number;
     take?: number;

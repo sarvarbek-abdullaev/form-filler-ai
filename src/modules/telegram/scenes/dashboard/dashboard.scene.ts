@@ -1,8 +1,10 @@
 import { Scene, SceneEnter, On, Ctx, Message } from 'nestjs-telegraf';
 import { Markup } from 'telegraf';
-import { Logger } from '@nestjs/common';
+import { Logger, UseGuards } from '@nestjs/common';
 import type { BotContext } from '../../interfaces';
 import { SCENES } from '../../config';
+import { TelegramAuthGuard } from '../../guards';
+import { UserService } from '../../../user';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -12,9 +14,12 @@ const getKeyboard = () =>
     ['📧 Edit Email', '🚪 Logout'],
   ]).resize();
 
+@UseGuards(TelegramAuthGuard)
 @Scene(SCENES.DASHBOARD)
 export class DashboardScene {
   private readonly logger = new Logger(DashboardScene.name);
+
+  constructor(private readonly userService: UserService) {}
 
   @SceneEnter()
   async onEnter(@Ctx() ctx: BotContext) {
@@ -60,6 +65,7 @@ export class DashboardScene {
   }
 
   private async handleLogout(ctx: BotContext) {
+    ctx.session.userId = undefined;
     ctx.session.userName = undefined;
     ctx.session.userEmail = undefined;
     ctx.session.mode = undefined;
@@ -77,6 +83,11 @@ export class DashboardScene {
         return;
       }
 
+      await this.userService.updateUser({
+        where: { id: ctx.session.userId },
+        data: { name },
+      });
+
       ctx.session.userName = name;
       ctx.session.mode = undefined;
       await ctx.reply('✅ Username updated', getKeyboard());
@@ -88,6 +99,11 @@ export class DashboardScene {
         await ctx.reply('❌ Invalid email. Try again:');
         return;
       }
+
+      await this.userService.updateUser({
+        where: { id: ctx.session.userId },
+        data: { email: text },
+      });
 
       ctx.session.userEmail = text;
       ctx.session.mode = undefined;
