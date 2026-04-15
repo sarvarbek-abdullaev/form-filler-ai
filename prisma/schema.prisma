@@ -15,9 +15,9 @@ datasource db {
 
 model User {
   id       Int       @id @default(autoincrement())
-  email    String    @unique
   name     String?
-  // 
+  phone    String    @unique
+  //
   balance  Balance?
   //
   accounts Account[]

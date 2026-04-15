@@ -68,7 +68,7 @@ export class TopUpScene {
     );
 
     this.logger.log(
-      `User ${ctx.session.userName} submitted top-up #${transaction.id} for ${amount} UZS`,
+      `User ${ctx.session.name} submitted top-up #${transaction.id} for ${amount} UZS`,
     );
 
     await ctx.telegram.sendPhoto(
@@ -77,7 +77,7 @@ export class TopUpScene {
       {
         caption:
           `🔔 *New Top Up Request #${transaction.id}*\n\n` +
-          `👤 User: ${ctx.session.userName} (ID: ${userId})\n` +
+          `👤 User: ${ctx.session.name} (ID: ${userId})\n` +
           `🆔 Telegram: ${ctx.from?.id}}\n` +
           `💰 Amount: *${amount.toLocaleString()} UZS*`,
         parse_mode: 'Markdown',

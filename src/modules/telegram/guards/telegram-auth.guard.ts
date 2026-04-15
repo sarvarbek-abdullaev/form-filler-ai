@@ -33,8 +33,8 @@ export class TelegramAuthGuard implements CanActivate {
     }
 
     ctx.session.userId = account.user.id;
-    ctx.session.userName = account.user.name ?? undefined;
-    ctx.session.userEmail = account.user.email;
+    ctx.session.name = account.user.name ?? undefined;
+    ctx.session.phone = account.user.phone;
 
     return true;
   }

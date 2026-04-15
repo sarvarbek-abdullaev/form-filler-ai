@@ -27,8 +27,8 @@ export class TelegramUpdate {
 
       if (account) {
         ctx.session.userId = account.user.id;
-        ctx.session.userName = account.user.name ?? undefined;
-        ctx.session.userEmail = account.user.email;
+        ctx.session.name = account.user.name ?? undefined;
+        ctx.session.phone = account.user.phone;
 
         await ctx.reply('👋 Welcome back!');
         await ctx.scene.enter(SCENES.DASHBOARD);

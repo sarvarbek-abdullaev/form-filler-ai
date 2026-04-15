@@ -21,11 +21,7 @@ export class DashboardScene {
 
   @SceneEnter()
   async onEnter(@Ctx() ctx: BotContext) {
-    this.logger.log(`User ${ctx.session.userName} entered dashboard`);
-    await ctx.reply(
-      `👋 Welcome${ctx.session.userName ? `, ${ctx.session.userName}` : ''}!`,
-      getKeyboard(),
-    );
+    await ctx.reply('🏠 Dashboard', getKeyboard());
   }
 
   @On('text')
@@ -58,8 +54,8 @@ export class DashboardScene {
   private async handleProfile(ctx: BotContext) {
     await ctx.reply(
       `👤 *Profile*\n\n` +
-        `Name: ${ctx.session.userName || 'Not set'}\n` +
-        `Email: ${ctx.session.userEmail || 'Not set'}`,
+        `Name: ${ctx.session.name || 'Not set'}\n` +
+        `Phone: ${ctx.session.phone || 'Not set'}`,
       { parse_mode: 'Markdown' },
     );
   }
@@ -91,8 +87,8 @@ export class DashboardScene {
 
   private async handleLogout(ctx: BotContext) {
     ctx.session.userId = undefined;
-    ctx.session.userName = undefined;
-    ctx.session.userEmail = undefined;
+    ctx.session.name = undefined;
+    ctx.session.phone = undefined;
     ctx.session.mode = undefined;
 
     await ctx.reply('🚪 Logged out');

@@ -25,7 +25,7 @@ export class UserService {
 
   async findOrCreateByTelegram(
     telegramId: string,
-    data: { email: string; name?: string },
+    data: { phone: string; name: string },
   ): Promise<User> {
     const existing = await this.prisma.account.findUnique({
       where: {
@@ -38,7 +38,7 @@ export class UserService {
 
     return this.prisma.user.create({
       data: {
-        email: data.email,
+        phone: data.phone,
         name: data.name,
         accounts: {
           create: { provider: 'telegram', providerId: telegramId },
@@ -50,6 +50,12 @@ export class UserService {
   async findAccountByUserId(userId: number) {
     return this.prisma.account.findFirst({
       where: { userId, provider: 'telegram' },
+    });
+  }
+
+  async findByPhone(phone: string) {
+    return this.prisma.user.findFirst({
+      where: { phone },
     });
   }
 
