@@ -7,9 +7,13 @@ FROM base AS deps
 RUN yarn install --frozen-lockfile
 
 FROM base AS build
+
+ARG DATABASE_PUBLIC_URL
+ENV DATABASE_URL=${DATABASE_PUBLIC_URL}
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN yarn prisma generate
+RUN yarn setup
 RUN yarn build
 
 FROM base AS production
