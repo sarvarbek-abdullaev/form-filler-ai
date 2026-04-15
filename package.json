@@ -32,6 +32,8 @@
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "@telegraf/session": "^2.0.0-beta.7",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "joi": "^18.1.2",
     "nestjs-telegraf": "^2.9.1",
     "pg": "^8.20.0",
