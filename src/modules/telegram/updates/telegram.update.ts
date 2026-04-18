@@ -1,4 +1,12 @@
-import { Start, Update, Action, Ctx, Command, Context } from 'nestjs-telegraf';
+import {
+  Start,
+  Update,
+  Action,
+  Ctx,
+  Command,
+  Context,
+  On,
+} from 'nestjs-telegraf';
 import { Logger, UseGuards } from '@nestjs/common';
 import type { BotContext } from '../interfaces';
 import { SCENES } from '../config';
@@ -43,6 +51,27 @@ export class TelegramUpdate {
 
     await ctx.reply('👋 Welcome! Please register to continue.');
     await ctx.scene.enter(SCENES.AUTH);
+  }
+
+  @On('message')
+  @Public()
+  async onMessage(@Ctx() ctx: BotContext) {
+    if (!ctx.session.userId) {
+      const account = await this.userService.findAccountByTelegram(
+        String(ctx.from?.id ?? ''),
+      );
+
+      if (account) {
+        ctx.session.userId = account.user.id;
+        ctx.session.name = account.user.name ?? undefined;
+        ctx.session.phone = account.user.phone ?? undefined;
+
+        await ctx.scene.enter(SCENES.DASHBOARD);
+        return;
+      }
+
+      await ctx.scene.enter(SCENES.AUTH);
+    }
   }
 
   @Command('admin')
