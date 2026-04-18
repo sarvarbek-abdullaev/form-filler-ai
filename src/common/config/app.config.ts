@@ -8,6 +8,7 @@ export const validationSchema = Joi.object({
   ADMIN_GROUP_ID: Joi.number().required(),
   CARD_NUMBER: Joi.string().required(),
   ADMINS: Joi.string().required(),
+  REDIS_URL: Joi.string().required(),
 });
 
 export default (): IAppConfig => ({
@@ -17,4 +18,5 @@ export default (): IAppConfig => ({
   adminGroupId: process.env.ADMIN_GROUP_ID || '',
   cardNumber: process.env.CARD_NUMBER || '',
   admins: process.env.ADMINS || '',
+  redisUrl: process.env.REDIS_URL || '',
 });

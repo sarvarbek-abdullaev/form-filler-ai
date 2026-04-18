@@ -21,6 +21,7 @@ model User {
   balance  Balance?
   //
   accounts Account[]
+  jobs     Job[]
 }
 
 model Balance {
@@ -55,6 +56,31 @@ model Account {
   userId     Int
 
   @@unique([provider, providerId])
+}
+
+model Job {
+  id          Int       @id @default(autoincrement())
+  name        String
+  formUrl     String
+  isMultiPage Boolean
+  entries     Int
+  progress    Int       @default(0)
+  status      JobStatus @default(PENDING)
+  // 
+  user        User      @relation(fields: [userId], references: [id])
+  userId      Int
+  // 
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  PAUSED
+  DONE
+  FAILED
+  CANCELLED
 }
 
 enum TransactionType {

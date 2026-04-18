@@ -5,4 +5,5 @@ export interface IAppConfig {
   databaseUrl: string;
   cardNumber: string;
   admins: string;
+  redisUrl: string;
 }

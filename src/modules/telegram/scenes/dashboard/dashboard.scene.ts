@@ -9,7 +9,8 @@ import { BalanceService } from '../../../balance';
 const getKeyboard = () =>
   Markup.keyboard([
     ['👤 Profile', '💰 Balance'],
-    ['💳 Top Up', '🚪 Logout'],
+    ['💳 Top Up', '📋 My Jobs'],
+    ['➕ New Job', '🚪 Logout'],
   ]).resize();
 
 @UseGuards(TelegramAuthGuard)
@@ -33,6 +34,14 @@ export class DashboardScene {
 
       case '💰 Balance':
         await this.handleBalance(ctx);
+        break;
+
+      case '📋 My Jobs':
+        await ctx.scene.enter(SCENES.MY_JOBS);
+        break;
+
+      case '➕ New Job':
+        await ctx.scene.enter(SCENES.NEW_JOB);
         break;
 
       case '💳 Top Up':
