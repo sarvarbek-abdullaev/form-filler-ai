@@ -8,9 +8,10 @@ import { TopUpScene } from './top-up/top-up.scene';
 import { NewJobScene } from './new-job/new-job.scene';
 import { MyJobsScene } from './my-jobs/my-jobs.scene';
 import { JobModule } from '../../job';
+import { FormAnalyzerModule } from '../../form-analyzer';
 
 @Module({
-  imports: [UserModule, BalanceModule, JobModule],
+  imports: [UserModule, BalanceModule, JobModule, FormAnalyzerModule],
   providers: [
     HomeScene,
     AuthScene,

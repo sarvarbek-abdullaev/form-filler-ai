@@ -4,35 +4,27 @@ import { Markup } from 'telegraf';
 import type { BotContext } from '../../interfaces';
 import { SCENES } from '../../config';
 import { JobService } from '../../../job';
+import { FormAnalyzerService } from '../../../form-analyzer';
 
 @Wizard(SCENES.NEW_JOB)
 export class NewJobScene {
   private readonly logger = new Logger(NewJobScene.name);
 
-  constructor(private readonly jobService: JobService) {}
+  constructor(
+    private readonly jobService: JobService,
+    private readonly formAnalyzerService: FormAnalyzerService,
+  ) {}
 
   @WizardStep(1)
-  async askName(@Ctx() ctx: BotContext) {
-    await ctx.reply('📝 Give this job a name:', Markup.removeKeyboard());
+  async askUrl(@Ctx() ctx: BotContext) {
+    await ctx.reply(
+      '🔗 Please send the Google Form URL:',
+      Markup.removeKeyboard(),
+    );
     ctx.wizard.next();
   }
 
   @WizardStep(2)
-  async validateName(@Ctx() ctx: BotContext) {
-    const text =
-      ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
-
-    if (!text || text.length < 2) {
-      await ctx.reply('❌ Name must be at least 2 characters. Try again:');
-      return;
-    }
-
-    ctx.session.jobName = text;
-    await ctx.reply('🔗 Please send the Google Form URL:');
-    ctx.wizard.next();
-  }
-
-  @WizardStep(3)
   async validateUrl(@Ctx() ctx: BotContext) {
     const text =
       ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
@@ -42,16 +34,46 @@ export class NewJobScene {
       return;
     }
 
-    ctx.session.jobFormUrl = text;
+    const analyzing = await ctx.reply('🔍 Analyzing form...');
 
-    await ctx.reply(
-      '🔢 How many entries do you want to submit?',
-      Markup.removeKeyboard(),
-    );
+    try {
+      const analysis = await this.formAnalyzerService.analyze(text);
+
+      ctx.session.jobFormUrl = text;
+      ctx.session.jobName = analysis.title;
+      ctx.session.jobIsMultiPage = analysis.isMultiPage;
+      ctx.session.jobAnalysis = {
+        title: analysis.title,
+        pageCount: analysis.pageCount,
+        fieldCount: analysis.fieldCount,
+      };
+
+      await ctx.telegram.editMessageText(
+        ctx.chat!.id,
+        analyzing.message_id,
+        undefined,
+        `✅ *Form analyzed!*\n\n` +
+          `📋 Title: *${analysis.title}*\n` +
+          `📄 Pages: ${analysis.pageCount}\n` +
+          `❓ Fields: ${analysis.fieldCount}\n` +
+          `🔀 Multi-page: ${analysis.isMultiPage ? 'Yes' : 'No'}`,
+        { parse_mode: 'Markdown' },
+      );
+    } catch {
+      await ctx.telegram.editMessageText(
+        ctx.chat!.id,
+        analyzing.message_id,
+        undefined,
+        '❌ Could not analyze the form. Please check the URL and try again:',
+      );
+      return;
+    }
+
+    await ctx.reply('🔢 How many entries do you want to submit?');
     ctx.wizard.next();
   }
 
-  @WizardStep(4)
+  @WizardStep(3)
   async validateEntries(@Ctx() ctx: BotContext) {
     const text =
       ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
@@ -65,10 +87,15 @@ export class NewJobScene {
 
     ctx.session.jobEntries = entries;
 
+    const analysis = ctx.session.jobAnalysis;
+
     await ctx.reply(
       `📋 *Confirm your job:*\n\n` +
         `📝 Name: *${ctx.session.jobName}*\n` +
         `🔗 URL: ${ctx.session.jobFormUrl}\n` +
+        `📄 Pages: ${analysis?.pageCount ?? 1}\n` +
+        `❓ Fields: ${analysis?.fieldCount ?? '?'}\n` +
+        `🔀 Multi-page: ${ctx.session.jobIsMultiPage ? 'Yes' : 'No'}\n` +
         `🔢 Entries: *${entries}*`,
       {
         parse_mode: 'Markdown',
@@ -98,6 +125,7 @@ export class NewJobScene {
     ctx.session.jobFormUrl = undefined;
     ctx.session.jobIsMultiPage = undefined;
     ctx.session.jobEntries = undefined;
+    ctx.session.jobAnalysis = undefined;
 
     await ctx.editMessageText(
       `✅ *Job Created!*\n\n` +
@@ -112,9 +140,7 @@ export class NewJobScene {
       },
     );
 
-    await ctx.answerCbQuery(
-      '⏳ Your job is created. Please run it whenever you want.',
-    );
+    await ctx.answerCbQuery('✅ Job created!');
   }
 
   @Action('job_cancel_create')
@@ -123,6 +149,7 @@ export class NewJobScene {
     ctx.session.jobFormUrl = undefined;
     ctx.session.jobIsMultiPage = undefined;
     ctx.session.jobEntries = undefined;
+    ctx.session.jobAnalysis = undefined;
 
     await ctx.editMessageText('🚫 Job creation cancelled.');
     await ctx.scene.enter(SCENES.DASHBOARD);

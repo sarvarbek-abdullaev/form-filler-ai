@@ -11,6 +11,11 @@ export interface BotSession extends Scenes.WizardSession<Scenes.WizardSessionDat
   jobEntries?: number;
   jobFormUrl?: string;
   jobIsMultiPage?: boolean;
+  jobAnalysis?: {
+    title: string;
+    pageCount: number;
+    fieldCount: number;
+  };
 }
 
 export interface BotContext extends Scenes.WizardContext {

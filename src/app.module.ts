@@ -3,7 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import appConfig from './common/config/app.config';
-import { JobModule, TelegramModule, UserModule } from './modules';
+import {
+  FormAnalyzerModule,
+  JobModule,
+  TelegramModule,
+  UserModule,
+} from './modules';
 import { IAppConfig, PrismaModule, validationSchema } from './common';
 import { BullModule } from '@nestjs/bullmq';
 
@@ -29,6 +34,7 @@ import { BullModule } from '@nestjs/bullmq';
     PrismaModule,
     UserModule,
     JobModule,
+    FormAnalyzerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -11,6 +11,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { TelegramAuthGuard } from './guards';
 import { UserModule } from '../user';
 import { BalanceModule } from '../balance';
+import { FormAnalyzerModule } from '../form-analyzer';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { BalanceModule } from '../balance';
     ScenesModule,
     UserModule,
     BalanceModule,
+    FormAnalyzerModule,
   ],
   providers: [
     TelegramService,
