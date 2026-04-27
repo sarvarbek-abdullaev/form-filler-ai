@@ -16,6 +16,7 @@ import { BalanceService } from '../../balance';
 import { AdminGuard } from '../decorators/admin.decorator';
 import { JobService } from '../../job';
 import { Markup } from 'telegraf';
+import { BalanceGuard } from '../guards';
 
 @Public()
 @Update()
@@ -177,6 +178,7 @@ export class TelegramUpdate {
     await ctx.answerCbQuery('❌ Rejected');
   }
 
+  @UseGuards(BalanceGuard)
   @Action(/job_run:(\d+)/)
   async onRun(@Ctx() ctx: BotContext & { match: RegExpExecArray }) {
     const jobId = parseInt(ctx.match[1]);
@@ -185,5 +187,11 @@ export class TelegramUpdate {
 
     await ctx.answerCbQuery('▶️ Job queued!');
     await ctx.editMessageReplyMarkup(Markup.inlineKeyboard([]).reply_markup);
+  }
+
+  @Action('balance_topup')
+  async onTopUp(@Ctx() ctx: BotContext) {
+    await ctx.answerCbQuery();
+    await ctx.scene.enter(SCENES.TOP_UP);
   }
 }

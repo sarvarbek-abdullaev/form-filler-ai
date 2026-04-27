@@ -19,7 +19,13 @@ export class UserService {
       where: {
         provider_providerId: { provider: 'telegram', providerId: telegramId },
       },
-      include: { user: true },
+      include: {
+        user: {
+          include: {
+            balance: true,
+          },
+        },
+      },
     });
   }
 
