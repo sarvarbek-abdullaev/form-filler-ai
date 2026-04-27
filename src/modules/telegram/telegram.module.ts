@@ -12,6 +12,7 @@ import { TelegramAuthGuard } from './guards';
 import { UserModule } from '../user';
 import { BalanceModule } from '../balance';
 import { FormAnalyzerModule } from '../form-analyzer';
+import { JobModule } from '../job';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { FormAnalyzerModule } from '../form-analyzer';
     UserModule,
     BalanceModule,
     FormAnalyzerModule,
+    JobModule,
   ],
   providers: [
     TelegramService,

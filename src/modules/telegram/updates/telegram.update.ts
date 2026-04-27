@@ -14,6 +14,8 @@ import { Public } from '../decorators';
 import { UserService } from '../../user';
 import { BalanceService } from '../../balance';
 import { AdminGuard } from '../decorators/admin.decorator';
+import { JobService } from '../../job';
+import { Markup } from 'telegraf';
 
 @Public()
 @Update()
@@ -23,6 +25,7 @@ export class TelegramUpdate {
   constructor(
     private readonly userService: UserService,
     private readonly balanceService: BalanceService,
+    private readonly jobService: JobService,
   ) {}
 
   @Start()
@@ -172,5 +175,15 @@ export class TelegramUpdate {
     });
 
     await ctx.answerCbQuery('❌ Rejected');
+  }
+
+  @Action(/job_run:(\d+)/)
+  async onRun(@Ctx() ctx: BotContext & { match: RegExpExecArray }) {
+    const jobId = parseInt(ctx.match[1]);
+
+    await this.jobService.runJob(jobId);
+
+    await ctx.answerCbQuery('▶️ Job queued!');
+    await ctx.editMessageReplyMarkup(Markup.inlineKeyboard([]).reply_markup);
   }
 }

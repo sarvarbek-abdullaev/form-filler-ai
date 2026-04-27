@@ -156,14 +156,4 @@ export class NewJobScene {
     await ctx.editMessageText('🚫 Job creation cancelled.');
     await ctx.scene.enter(SCENES.DASHBOARD);
   }
-
-  @Action(/job_run:(\d+)/)
-  async onRun(@Ctx() ctx: BotContext & { match: RegExpExecArray }) {
-    const jobId = parseInt(ctx.match[1]);
-
-    await this.jobService.runJob(jobId);
-
-    await ctx.answerCbQuery('▶️ Job queued!');
-    await ctx.editMessageReplyMarkup(Markup.inlineKeyboard([]).reply_markup);
-  }
 }
