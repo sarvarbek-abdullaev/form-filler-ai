@@ -9,6 +9,8 @@ import { UserService } from '../user';
 import { botConfig } from '../telegram/config';
 import type { BotContext } from '../telegram/interfaces';
 import { JobStatus } from '../../../generated/prisma/enums';
+import { FormAnalyzerService } from '../form-analyzer';
+import { FormSubmitterService } from '../form-submitter';
 
 const PROGRESS_UPDATE_EVERY = 10; // update every 10 submissions
 
@@ -20,6 +22,8 @@ export class FormFillerProcessor extends WorkerHost {
     private readonly jobService: JobService,
     private readonly prisma: PrismaService,
     private readonly userService: UserService,
+    private readonly formAnalyzerService: FormAnalyzerService,
+    private readonly formSubmitterService: FormSubmitterService,
     @InjectBot(botConfig.NAME) private readonly bot: Telegraf<BotContext>,
   ) {
     super();
@@ -65,74 +69,65 @@ export class FormFillerProcessor extends WorkerHost {
 
     await this.jobService.updateStatus(+jobId, JobStatus.RUNNING);
 
-    // send initial progress message and keep its id to edit later
     const progressMsg = await this.bot.telegram.sendMessage(
       telegramId,
       this.formatProgress(+jobId, startFrom, dbJob.entries),
       { parse_mode: 'Markdown' },
     );
 
-    let completed = startFrom;
-
     try {
-      for (let i = startFrom; i < dbJob.entries; i++) {
-        // check if job was cancelled or paused mid-run
-        const current = await this.jobService.getJob(+jobId);
-        if (
-          current?.status === JobStatus.CANCELLED ||
-          current?.status === JobStatus.PAUSED
-        ) {
-          this.logger.log(`Job #${jobId} was ${current.status}, stopping`);
-          return;
-        }
+      const analysis = await this.formAnalyzerService.analyze(dbJob.formUrl);
+      const formId = analysis.formId;
 
-        // your form submission logic here:
-        // await submitSingleForm(dbJob.formUrl, dbJob.isMultiPage);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      await this.formSubmitterService.submitMany({
+        formId,
+        analysis,
+        count: dbJob.entries - startFrom,
+        delayMs: 1000,
+        onProgress: async (completed) => {
+          const total = completed + startFrom;
 
-        completed++;
+          await this.jobService.updateProgress(+jobId, total);
 
-        // update progress every N submissions
-        if (
-          completed % PROGRESS_UPDATE_EVERY === 0 ||
-          completed === dbJob.entries
-        ) {
-          await this.jobService.updateProgress(+jobId, completed);
-
-          await this.bot.telegram.editMessageText(
-            telegramId,
-            progressMsg.message_id,
-            undefined,
-            this.formatProgress(jobId, completed, dbJob.entries),
-            { parse_mode: 'Markdown' },
-          );
-        }
-      }
+          if (total % PROGRESS_UPDATE_EVERY === 0 && total !== dbJob.entries) {
+            await this.bot.telegram.editMessageText(
+              telegramId,
+              progressMsg.message_id,
+              undefined,
+              this.formatProgress(+jobId, total, dbJob.entries),
+              { parse_mode: 'Markdown' },
+            );
+          }
+        },
+      });
 
       await this.jobService.updateStatus(+jobId, JobStatus.DONE);
+      await this.jobService.updateProgress(+jobId, dbJob.entries);
 
       await this.bot.telegram.editMessageText(
         telegramId,
         progressMsg.message_id,
         undefined,
-        `✅ *Job #${jobId} completed!*\n\n🔢 ${dbJob.entries}/${dbJob.entries} entries submitted.`,
+        this.formatProgress(+jobId, dbJob.entries, dbJob.entries),
+        { parse_mode: 'Markdown' },
+      );
+
+      await this.bot.telegram.sendMessage(
+        telegramId,
+        `✅ *Job #${jobId} "${dbJob.name}" completed!*\n\n🔢 ${dbJob.entries}/${dbJob.entries} entries submitted.`,
         { parse_mode: 'Markdown' },
       );
     } catch (error) {
       this.logger.error(`Job #${jobId} failed: ${error}`);
       await this.jobService.updateStatus(+jobId, JobStatus.FAILED);
 
-      await this.bot.telegram.editMessageText(
+      await this.bot.telegram.sendMessage(
         telegramId,
-        progressMsg.message_id,
-        undefined,
-        `❌ *Job #${jobId} failed!*\n\n✅ ${completed}/${dbJob.entries} submitted before failure.`,
+        `❌ *Job #${jobId} failed!*`,
         { parse_mode: 'Markdown' },
       );
 
       throw error;
-    } finally {
-      console.log('completed');
     }
   }
 

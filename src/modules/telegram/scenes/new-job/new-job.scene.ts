@@ -141,6 +141,8 @@ export class NewJobScene {
     );
 
     await ctx.answerCbQuery('✅ Job created!');
+
+    await ctx.scene.leave();
   }
 
   @Action('job_cancel_create')

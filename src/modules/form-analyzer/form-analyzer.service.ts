@@ -47,6 +47,7 @@ export interface FormPage {
 }
 
 export interface FormAnalysis {
+  formId: string;
   title: string;
   description?: string;
   isMultiPage: boolean;
@@ -97,21 +98,11 @@ function getArray(value: unknown): unknown[] {
 export class FormAnalyzerService {
   private readonly logger = new Logger(FormAnalyzerService.name);
 
-  // constructor() {
-  // const url =
-  //   'https://docs.google.com/forms/d/e/1FAIpQLSdVL7wQAkb3ddudDx72XQbcSc4M5ttRmrESOl1VMhtyByFJQA/viewform';
-  // const url =
-  //   'https://docs.google.com/forms/d/e/1FAIpQLSfc28KC4cgrd7FcXQHTr1RpXnafjhhh8x9bEV5LcLuasxuovw/viewform';
-  // (async () => {
-  //   const shit = await this.analyze(url);
-  //   console.log('shit', shit);
-  // })();
-  // }
-
   async analyze(formUrl: string): Promise<FormAnalysis> {
     const html = await this.fetchForm(formUrl);
     const data = this.extractFormData(html);
-    return this.parseFormData(data);
+    const formId = this.extractFormId(formUrl);
+    return this.parseFormData(data, formId);
   }
 
   private async fetchForm(url: string): Promise<string> {
@@ -131,7 +122,7 @@ export class FormAnalyzerService {
     return parsed as RawData;
   }
 
-  private parseFormData(data: RawData): FormAnalysis {
+  private parseFormData(data: RawData, formId: string): FormAnalysis {
     const formTitle = getString(data[3]) ?? 'Unknown';
     const formDescription = getString(getArray(data[1])[0]);
     const items = getArray(getArray(data[1])[1]); // data[1][1] is the flat items array
@@ -181,6 +172,7 @@ export class FormAnalyzerService {
     );
 
     return {
+      formId,
       title: formTitle,
       description: formDescription,
       isMultiPage,
@@ -252,5 +244,11 @@ export class FormAnalyzerService {
     }
 
     return rules;
+  }
+
+  private extractFormId(formUrl: string): string {
+    const match = formUrl.match(/\/d\/e\/([^/]+)\//);
+    if (!match?.[1]) throw new Error('Could not extract form ID from URL');
+    return match[1];
   }
 }
