@@ -13,7 +13,7 @@ export class GeminiService {
       configService.getOrThrow('geminiApiKey'),
     );
     this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash-lite',
     });
   }
 
