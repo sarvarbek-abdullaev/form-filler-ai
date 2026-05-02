@@ -6,4 +6,5 @@ export interface IAppConfig {
   cardNumber: string;
   admins: string;
   redisUrl: string;
+  geminiApiKey: string;
 }

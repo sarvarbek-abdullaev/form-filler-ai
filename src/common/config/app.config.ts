@@ -9,6 +9,7 @@ export const validationSchema = Joi.object({
   CARD_NUMBER: Joi.string().required(),
   ADMINS: Joi.string().required(),
   REDIS_URL: Joi.string().required(),
+  GEMINI_API_KEY: Joi.string().required(),
 });
 
 export default (): IAppConfig => ({
@@ -19,4 +20,5 @@ export default (): IAppConfig => ({
   cardNumber: process.env.CARD_NUMBER || '',
   admins: process.env.ADMINS || '',
   redisUrl: process.env.REDIS_URL || '',
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
 });
