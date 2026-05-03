@@ -9,6 +9,7 @@ import {
   TelegramModule,
   UserModule,
   GeminiModule,
+  FormResponseGeneratorModule,
 } from './modules';
 import { IAppConfig, PrismaModule, validationSchema } from './common';
 import { BullModule } from '@nestjs/bullmq';
@@ -37,6 +38,7 @@ import { BullModule } from '@nestjs/bullmq';
     JobModule,
     FormAnalyzerModule,
     GeminiModule,
+    FormResponseGeneratorModule,
   ],
   controllers: [AppController],
   providers: [AppService],

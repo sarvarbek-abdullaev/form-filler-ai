@@ -8,7 +8,7 @@ export class GeminiController {
 
   @Get()
   async ask(@Query('q') message: string) {
-    return await this.geminiService.generateResponseTest({
+    return await this.geminiService.generateResponse({
       message,
     });
   }
