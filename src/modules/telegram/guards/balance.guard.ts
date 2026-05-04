@@ -4,12 +4,14 @@ import { UserService } from '../../user';
 import { TelegrafExecutionContext } from 'nestjs-telegraf';
 import type { BotContext } from '../interfaces';
 import { Markup } from 'telegraf';
+import { FormAnalyzerService } from '../../form-analyzer';
 
 @Injectable()
 export class BalanceGuard implements CanActivate {
   constructor(
     private readonly userService: UserService,
     private readonly prisma: PrismaService,
+    private readonly formAnalyzerService: FormAnalyzerService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -34,45 +36,36 @@ export class BalanceGuard implements CanActivate {
     });
     if (!job) return false;
 
-    // TODO: write an util that calculate the price based on some other logic which supports discounts
-    const rate = 1000;
-    const required = job.entries * rate;
+    const { price } = await this.formAnalyzerService.analyze(
+      job.formUrl,
+      job.entries,
+    );
+
+    const required = price!.totalPrice;
 
     if (balance < required) {
       const short = required - balance;
 
       await ctx.answerCbQuery('💸 Not enough balance');
 
-      const message =
+      await ctx.reply(
         `💸 *Insufficient balance*\n\n` +
-        `💰 Your balance: *${balance}*\n` +
-        `📉 Required: *${required}*\n` +
-        `❗ Missing: *${short}*\n\n` +
-        `Please top up and click to rerun`;
-
-      await ctx.reply(message, {
-        parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback('💳 Top Up Balance', 'balance_topup')],
-        ]),
-        reply_parameters: ctx.callbackQuery?.message
-          ? { message_id: ctx.callbackQuery.message.message_id }
-          : undefined,
-      });
-
-      return false;
-    }
-
-    if (balance < required) {
-      const message = '💸 Not enough balance';
-      await ctx.answerCbQuery(message);
-      await ctx.reply(message, {
-        reply_parameters: {
-          // @ts-ignore
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access
-          message_id: ctx.update?.callback_query.message.message_id,
+          `💰 Your balance: *${balance} UZS*\n` +
+          `📉 Required: *${price?.totalFormatted}*\n` +
+          `❗ Missing: *${short} UZS*\n\n` +
+          `Entries: × ${job.entries}\n\n` +
+          `Please top up and try again`,
+        {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback('💳 Top Up Balance', 'balance_topup')],
+          ]),
+          reply_parameters: ctx.callbackQuery?.message
+            ? { message_id: ctx.callbackQuery.message.message_id }
+            : undefined,
         },
-      });
+      );
+
       return false;
     }
 

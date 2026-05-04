@@ -76,7 +76,10 @@ export class FormFillerProcessor extends WorkerHost {
     );
 
     try {
-      const analysis = await this.formAnalyzerService.analyze(dbJob.formUrl);
+      const analysis = await this.formAnalyzerService.analyze(
+        dbJob.formUrl,
+        dbJob.entries,
+      );
       const formId = analysis.formId;
 
       await this.formSubmitterService.submitMany({

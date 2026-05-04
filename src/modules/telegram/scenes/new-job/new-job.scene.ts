@@ -34,10 +34,10 @@ export class NewJobScene {
       return;
     }
 
-    const analyzing = await ctx.reply('🔍 Analyzing form...');
+    const analyzing = await ctx.reply('🔍 Analyzing form, please wait...');
 
     try {
-      const analysis = await this.formAnalyzerService.analyze(text);
+      const analysis = await this.formAnalyzerService.analyze(text, 1);
 
       ctx.session.jobFormUrl = text;
       ctx.session.jobName = analysis.title;
@@ -48,18 +48,31 @@ export class NewJobScene {
         fieldCount: analysis.fieldCount,
       };
 
+      const price = analysis.price!;
+      const discountLine =
+        analysis.price!.discountPercent > 0
+          ? `\n   └ Loyalty discount: -${price.discountPercent}% (-${price.discountAmount} UZS)`
+          : '';
+      const complexityConnector = price.discountPercent > 0 ? '├' : '└';
+
       await ctx.telegram.editMessageText(
         ctx.chat!.id,
         analyzing.message_id,
         undefined,
         `✅ *Form analyzed!*\n\n` +
           `📋 Title: *${analysis.title}*\n` +
+          `━━━━━━━━━━━━━━━━━━\n` +
           `📄 Pages: ${analysis.pageCount}\n` +
           `❓ Fields: ${analysis.fieldCount}\n` +
-          `🔀 Multi-page: ${analysis.isMultiPage ? 'Yes' : 'No'}`,
+          `🔀 Multi-page: ${analysis.isMultiPage ? 'Yes' : 'No'}\n\n` +
+          `💰 Price per submission: *${price.formatted}*\n` +
+          `   ├ Base: ${price.basePrice} UZS\n` +
+          `   ${complexityConnector} Complexity fee: +${price.fieldSurcharge} UZS (${analysis.fieldCount} fields)` +
+          discountLine,
         { parse_mode: 'Markdown' },
       );
-    } catch {
+    } catch (e) {
+      this.logger.error(e);
       await ctx.telegram.editMessageText(
         ctx.chat!.id,
         analyzing.message_id,
@@ -69,7 +82,10 @@ export class NewJobScene {
       return;
     }
 
-    await ctx.reply('🔢 How many entries do you want to submit?');
+    await ctx.reply(
+      '🔢 How many entries do you want to submit?\n\n_Enter a number between 1 and 200:_',
+      { parse_mode: 'Markdown' },
+    );
     ctx.wizard.next();
   }
 
@@ -80,35 +96,82 @@ export class NewJobScene {
 
     const entries = parseInt(text);
 
-    if (isNaN(entries) || entries <= 0 || entries > 10000) {
-      await ctx.reply('❌ Please enter a valid number between 1 and 10000:');
+    if (isNaN(entries) || entries <= 0 || entries > 200) {
+      await ctx.reply('❌ Please enter a valid number between 1 and 200:');
       return;
     }
 
-    ctx.session.jobEntries = entries;
+    const calculating = await ctx.reply('🔍 Calculating, please wait...');
 
-    const analysis = ctx.session.jobAnalysis;
+    try {
+      ctx.session.jobEntries = entries;
 
-    await ctx.reply(
-      `📋 *Confirm your job:*\n\n` +
-        `📝 Name: *${ctx.session.jobName}*\n` +
-        `🔗 URL: ${ctx.session.jobFormUrl}\n` +
-        `📄 Pages: ${analysis?.pageCount ?? 1}\n` +
-        `❓ Fields: ${analysis?.fieldCount ?? '?'}\n` +
-        `🔀 Multi-page: ${ctx.session.jobIsMultiPage ? 'Yes' : 'No'}\n` +
-        `🔢 Entries: *${entries}*`,
-      {
-        parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard([
-          Markup.button.callback('✅ Confirm & Save', 'job_confirm'),
-          Markup.button.callback('❌ Cancel', 'job_cancel_create'),
-        ]),
-      },
+      const analysis = await this.formAnalyzerService.analyze(
+        ctx.session.jobFormUrl!,
+        entries,
+      );
+
+      const price = analysis.price!;
+      const discountLine =
+        price.discountPercent > 0
+          ? `\n   └ Loyalty discount: -${price.discountPercent}% (-${price.discountAmount} UZS)`
+          : '';
+
+      const complexityConnector = price.discountPercent > 0 ? '├' : '└';
+
+      ctx.session.jobTotalPrice = price.totalFormatted;
+
+      await ctx.reply(
+        `📋 *Job Summary*\n` +
+          `━━━━━━━━━━━━━━━━━━\n` +
+          `📝 *${ctx.session.jobName}*\n` +
+          `📄 Pages: ${analysis?.pageCount ?? 1}\n` +
+          `❓ Fields: ${analysis?.fieldCount ?? '?'}\n` +
+          `🔢 Entries: *${entries}*\n\n` +
+          `💳 *Payment Breakdown*\n` +
+          `━━━━━━━━━━━━━━━━━━\n` +
+          `Per submission: *${price.formatted}*\n` +
+          `   ├ Base: ${price.basePrice} UZS\n` +
+          `   ${complexityConnector} Complexity fee: +${price.fieldSurcharge} UZS (${analysis.fieldCount} fields)` +
+          discountLine +
+          '\n\n' +
+          `× ${entries} entries\n` +
+          `*Total: ${price.totalFormatted}*`,
+        {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback('✅ Confirm & Pay', 'job_confirm')],
+            [Markup.button.callback('✏️ Change entries', 'job_change_entries')],
+            [Markup.button.callback('❌ Cancel', 'job_cancel_create')],
+          ]),
+        },
+      );
+    } catch (e) {
+      this.logger.error(e);
+      await ctx.telegram.editMessageText(
+        ctx.chat!.id,
+        calculating.message_id,
+        undefined,
+        '❌ Something went wrong',
+      );
+      return;
+    }
+  }
+
+  @Action('job_change_entries')
+  async onChangeEntries(@Ctx() ctx: BotContext) {
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(
+      '🔢 How many entries do you want to submit?\n\n_Enter a number between 1 and 200:_',
+      { parse_mode: 'Markdown' },
     );
+    // stay on step 3 so next message re-validates
   }
 
   @Action('job_confirm')
   async onConfirm(@Ctx() ctx: BotContext) {
+    await ctx.answerCbQuery('⏳ Creating job...');
+
     const job = await this.jobService.createJob({
       userId: ctx.session.userId!,
       name: ctx.session.jobName!,
@@ -121,17 +184,20 @@ export class NewJobScene {
       `Job #${job.id} "${job.name}" created for user ${ctx.session.userId}`,
     );
 
+    const totalPrice = ctx.session.jobTotalPrice;
+
     ctx.session.jobName = undefined;
     ctx.session.jobFormUrl = undefined;
     ctx.session.jobIsMultiPage = undefined;
     ctx.session.jobEntries = undefined;
     ctx.session.jobAnalysis = undefined;
+    ctx.session.jobTotalPrice = undefined;
 
     await ctx.editMessageText(
-      `✅ *Job Created!*\n\n` +
-        `📝 Name: *${job.name}*\n` +
-        `🔗 URL: ${job.formUrl}\n` +
-        `🔢 Entries: *${job.entries}*`,
+      `🎉 *Job Created!*\n\n` +
+        `📝 *${job.name}*\n` +
+        `🔢 Entries: ${job.entries}\n` +
+        `💰 Charged: *${totalPrice}*`,
       {
         parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
@@ -147,6 +213,8 @@ export class NewJobScene {
 
   @Action('job_cancel_create')
   async onCancelCreate(@Ctx() ctx: BotContext) {
+    await ctx.answerCbQuery();
+
     ctx.session.jobName = undefined;
     ctx.session.jobFormUrl = undefined;
     ctx.session.jobIsMultiPage = undefined;

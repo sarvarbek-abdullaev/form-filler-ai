@@ -1,4 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  BASE_PRICE_UZS,
+  FIELD_SURCHARGE_CAP,
+  FIELD_SURCHARGE_STEP,
+} from './pricing.constants';
 
 export type FieldType =
   | 'text'
@@ -55,6 +60,19 @@ export interface FormAnalysis {
   fieldCount: number;
   pages: FormPage[];
   fields: FormField[];
+  price: PriceBreakdown | null;
+}
+
+export interface PriceBreakdown {
+  basePrice: number;
+  fieldSurcharge: number;
+  subtotal: number;
+  discountPercent: number;
+  discountAmount: number;
+  finalPrice: number;
+  totalPrice: number;
+  formatted: string;
+  totalFormatted: string;
 }
 
 type RawData = unknown[][];
@@ -98,11 +116,18 @@ function getArray(value: unknown): unknown[] {
 export class FormAnalyzerService {
   private readonly logger = new Logger(FormAnalyzerService.name);
 
-  async analyze(formUrl: string): Promise<FormAnalysis> {
+  async analyze(formUrl: string, count: number): Promise<FormAnalysis> {
     const html = await this.fetchForm(formUrl);
     const data = this.extractFormData(html);
     const formId = this.extractFormId(formUrl);
-    return this.parseFormData(data, formId);
+    const analysis = this.parseFormData(data, formId);
+
+    const price = this.calculateSubmissionPrice(analysis.fieldCount, count);
+
+    return {
+      ...analysis,
+      price,
+    };
   }
 
   private async fetchForm(url: string): Promise<string> {
@@ -180,6 +205,7 @@ export class FormAnalyzerService {
       fieldCount: allFields.length,
       pages: parsedPages,
       fields: allFields,
+      price: null,
     };
   }
 
@@ -250,5 +276,50 @@ export class FormAnalyzerService {
     const match = formUrl.match(/\/d\/e\/([^/]+)\//);
     if (!match?.[1]) throw new Error('Could not extract form ID from URL');
     return match[1];
+  }
+
+  getLoyaltyDiscountPercent(totalSubmissions: number): number {
+    if (totalSubmissions <= 10) return 0;
+    if (totalSubmissions <= 30) return 15;
+    if (totalSubmissions <= 70) return 25;
+    if (totalSubmissions <= 120) return 40;
+    return 55;
+  }
+
+  getFieldSurcharge(fieldCount: number): number {
+    if (fieldCount <= 10) return 0;
+
+    // Every 10 fields above 10 adds 100 UZS, capped at 300
+    const steps = Math.ceil((fieldCount - 10) / 10);
+    return Math.min(steps * FIELD_SURCHARGE_STEP, FIELD_SURCHARGE_CAP);
+  }
+
+  formatUzs(amount: number): string {
+    return amount.toLocaleString('uz-UZ').replace(/,/g, ' ') + ' UZS';
+  }
+
+  calculateSubmissionPrice(
+    fieldCount: number,
+    totalSubmissions: number,
+  ): PriceBreakdown {
+    const fieldSurcharge = this.getFieldSurcharge(fieldCount);
+    const subtotal = BASE_PRICE_UZS + fieldSurcharge;
+
+    const discountPercent = this.getLoyaltyDiscountPercent(totalSubmissions);
+    const discountAmount = Math.round((subtotal * discountPercent) / 100);
+    const finalPrice = subtotal - discountAmount;
+    const totalPrice = finalPrice * totalSubmissions;
+
+    return {
+      basePrice: BASE_PRICE_UZS,
+      fieldSurcharge,
+      subtotal,
+      discountPercent,
+      discountAmount,
+      finalPrice,
+      totalPrice,
+      formatted: this.formatUzs(finalPrice),
+      totalFormatted: this.formatUzs(totalPrice),
+    };
   }
 }
