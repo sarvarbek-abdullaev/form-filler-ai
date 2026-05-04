@@ -1,23 +1,27 @@
+import { UseGuards } from '@nestjs/common';
+
 import { Scene, SceneEnter, On, Ctx, Message } from 'nestjs-telegraf';
 import { Markup } from 'telegraf';
-import { Logger, UseGuards } from '@nestjs/common';
-import type { BotContext } from '../../interfaces';
+
 import { SCENES } from '../../config';
 import { TelegramAuthGuard } from '../../guards';
 import { BalanceService } from '../../../balance';
 
+import type { BotContext } from '../../interfaces';
+
 const getKeyboard = () =>
   Markup.keyboard([
-    ['👤 Profile', '💰 Balance'],
-    ['💳 Top Up', '📋 My Jobs'],
-    ['➕ New Job', '🚪 Logout'],
+    ['⚡ Auto-Fill Form'],
+    ['💳 Top Up'],
+    ['📋 History', '👤 Profile'],
   ]).resize();
+
+const getProfileKeyboard = () =>
+  Markup.keyboard([['🚪 Logout'], ['⬅️ Back']]).resize();
 
 @UseGuards(TelegramAuthGuard)
 @Scene(SCENES.DASHBOARD)
 export class DashboardScene {
-  private readonly logger = new Logger(DashboardScene.name);
-
   constructor(private readonly balanceService: BalanceService) {}
 
   @SceneEnter()
@@ -28,69 +32,45 @@ export class DashboardScene {
   @On('text')
   async onText(@Ctx() ctx: BotContext, @Message('text') text: string) {
     switch (text) {
-      case '👤 Profile':
-        await this.handleProfile(ctx);
-        break;
-
-      case '💰 Balance':
-        await this.handleBalance(ctx);
-        break;
-
-      case '📋 My Jobs':
-        await ctx.scene.enter(SCENES.MY_JOBS);
-        break;
-
-      case '➕ New Job':
+      case '⚡ Auto-Fill Form':
         await ctx.scene.enter(SCENES.NEW_JOB);
+        break;
+
+      case '📋 History':
+        await ctx.scene.enter(SCENES.MY_JOBS);
         break;
 
       case '💳 Top Up':
         await ctx.scene.enter(SCENES.TOP_UP);
         break;
 
+      case '👤 Profile':
+        await this.handleProfile(ctx);
+        break;
+
       case '🚪 Logout':
         await this.handleLogout(ctx);
         break;
 
+      case '⬅️ Back':
+        await ctx.scene.reenter();
+        break;
+
       default:
-        await ctx.reply(
-          '❓ Unknown command. Use the menu below 👇',
-          getKeyboard(),
-        );
+        await ctx.reply('Use the menu below 👇', getKeyboard());
     }
   }
 
   private async handleProfile(ctx: BotContext) {
+    const balance = await this.balanceService.getBalance(ctx.session.userId!);
+    const amount = Number(balance?.amount ?? 0).toLocaleString();
+
     await ctx.reply(
       `👤 *Profile*\n\n` +
-        `Name: ${ctx.session.name || 'Not set'}\n` +
-        `Phone: ${ctx.session.phone || 'Not set'}`,
-      { parse_mode: 'Markdown' },
-    );
-  }
-
-  private async handleBalance(ctx: BotContext) {
-    const balance = await this.balanceService.getBalance(ctx.session.userId!);
-    const transactions = await this.balanceService.getTransactions(
-      ctx.session.userId!,
-    );
-
-    const history =
-      transactions.length === 0
-        ? 'No transactions yet.'
-        : transactions
-            .slice(0, 5)
-            .map(
-              (t) =>
-                `${t.type === 'CREDIT' ? '➕' : '➖'} ${Number(t.amount).toLocaleString()} UZS${t.note ? ` — ${t.note}` : ''}`,
-            )
-            .join('\n');
-
-    await ctx.reply(
-      `💰 *Balance*\n\n` +
-        `Amount: *${Number(balance?.amount ?? 0).toLocaleString()} UZS*\n\n` +
-        `📋 *Last transactions:*\n${history}`,
-      { parse_mode: 'Markdown' },
+        `Name: ${ctx.session.name ?? '—'}\n` +
+        `Phone: ${ctx.session.phone ?? '—'}\n\n` +
+        `💰 Balance: *${amount} UZS*`,
+      { parse_mode: 'Markdown', ...getProfileKeyboard() },
     );
   }
 
@@ -100,7 +80,7 @@ export class DashboardScene {
     ctx.session.phone = undefined;
     ctx.session.mode = undefined;
 
-    await ctx.reply('🚪 Logged out');
+    await ctx.reply('👋 See you next time!');
     await ctx.scene.enter(SCENES.AUTH);
   }
 }

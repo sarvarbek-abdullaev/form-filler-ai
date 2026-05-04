@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { HomeScene } from './home/home.scene';
 import { AuthScene } from './auth/auth.scene';
 import { DashboardScene } from './dashboard/dashboard.scene';
 import { UserModule } from '../../user';
@@ -12,21 +11,7 @@ import { FormAnalyzerModule } from '../../form-analyzer';
 
 @Module({
   imports: [UserModule, BalanceModule, JobModule, FormAnalyzerModule],
-  providers: [
-    HomeScene,
-    AuthScene,
-    DashboardScene,
-    TopUpScene,
-    NewJobScene,
-    MyJobsScene,
-  ],
-  exports: [
-    HomeScene,
-    AuthScene,
-    DashboardScene,
-    TopUpScene,
-    NewJobScene,
-    MyJobsScene,
-  ],
+  providers: [AuthScene, DashboardScene, TopUpScene, NewJobScene, MyJobsScene],
+  exports: [AuthScene, DashboardScene, TopUpScene, NewJobScene, MyJobsScene],
 })
 export class ScenesModule {}
