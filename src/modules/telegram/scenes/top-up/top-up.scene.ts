@@ -8,9 +8,14 @@ import { BalanceService } from '../../../balance';
 import { IAppConfig } from '../../../../common';
 import { UserService } from '../../../user';
 
+const MIN_AMOUNT = 5_000;
+
+const getBackKeyboard = () => Markup.keyboard([['⬅️ Back']]).resize();
+
 @Wizard(SCENES.TOP_UP)
 export class TopUpScene {
   private readonly cardNumber: string;
+  private readonly adminGroupId: string;
   private readonly logger = new Logger(TopUpScene.name);
 
   constructor(
@@ -21,14 +26,22 @@ export class TopUpScene {
     this.cardNumber = this.configService.getOrThrow('cardNumber', {
       infer: true,
     });
+    this.adminGroupId = this.configService.getOrThrow('adminGroupId', {
+      infer: true,
+    });
   }
 
   @WizardStep(1)
   async askAmount(@Ctx() ctx: BotContext) {
     await ctx.reply(
-      `💳 Transfer the desired amount to the following card:\n\n<code>${this.cardNumber}</code>\n\nHow much are you transferring? (in UZS)`,
-      { parse_mode: 'HTML', ...Markup.removeKeyboard() },
+      `💳 *Top Up Balance*\n\n` +
+        `Transfer any amount to this card:\n\n` +
+        `\`${this.cardNumber}\`\n\n` +
+        `Then enter the amount you transferred below _(min. ${MIN_AMOUNT.toLocaleString()} UZS)_:`,
+
+      { parse_mode: 'Markdown', ...getBackKeyboard() },
     );
+
     ctx.wizard.next();
   }
 
@@ -37,17 +50,35 @@ export class TopUpScene {
     const text =
       ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
 
-    const amount = Number(text.replace(/\s/g, ''));
+    if (text === '⬅️ Back') {
+      await ctx.scene.enter(SCENES.DASHBOARD);
+      return;
+    }
+
+    const amount = Number(text.replace(/[\s,]/g, ''));
 
     if (!amount || isNaN(amount) || amount <= 0) {
-      await ctx.reply('❌ Invalid amount. Please enter a valid number:');
+      await ctx.reply('❌ Please enter a valid number.\n\nExample: `50000`', {
+        parse_mode: 'Markdown',
+      });
+      return;
+    }
+
+    if (amount < MIN_AMOUNT) {
+      await ctx.reply(
+        `❌ Minimum top-up is *${MIN_AMOUNT.toLocaleString()} UZS*. Please enter a larger amount:`,
+        { parse_mode: 'Markdown' },
+      );
       return;
     }
 
     ctx.session.topUpAmount = amount;
+
     await ctx.reply(
-      `📸 Please send a screenshot of your transfer for <b>${amount.toLocaleString()} UZS</b>`,
-      { parse_mode: 'HTML' },
+      `📸 *Almost done!*\n\n` +
+        `Send a screenshot confirming your transfer of *${amount.toLocaleString()} UZS*.\n\n` +
+        `_Make sure the amount and card number are visible._`,
+      { parse_mode: 'Markdown', ...getBackKeyboard() },
     );
     ctx.wizard.next();
   }
@@ -61,46 +92,68 @@ export class TopUpScene {
     const amount = ctx.session.topUpAmount!;
     const userId = ctx.session.userId!;
 
-    const transaction = await this.balanceService.createPendingTopUp(
-      userId,
-      amount,
-      fileId,
-    );
+    try {
+      const transaction = await this.balanceService.createPendingTopUp(
+        userId,
+        amount,
+        fileId,
+      );
 
-    this.logger.log(
-      `User ${ctx.session.name} submitted top-up #${transaction.id} for ${amount} UZS`,
-    );
+      this.logger.log(
+        `User ${ctx.session.name} submitted top-up #${transaction.id} for ${amount} UZS`,
+      );
 
-    await ctx.telegram.sendPhoto(
-      this.configService.getOrThrow('adminGroupId', { infer: true }),
-      fileId,
-      {
+      await ctx.telegram.sendPhoto(this.adminGroupId, fileId, {
         caption:
-          `🔔 *New Top Up Request #${transaction.id}*\n\n` +
-          `👤 User: ${ctx.session.name} (ID: ${userId})\n` +
-          `🆔 Telegram: ${ctx.from?.id}}\n` +
-          `💰 Amount: *${amount.toLocaleString()} UZS*`,
-        parse_mode: 'Markdown',
+          `🔔 <b>Top Up Request #${transaction.id}</b>\n\n` +
+          `👤 ${ctx.session.name} (ID: ${userId})\n` +
+          `📱 Telegram: @${ctx.from?.username ?? ctx.from?.id}\n` +
+          `💰 Amount: <b>${amount.toLocaleString()} UZS</b>`,
+        parse_mode: 'HTML',
         ...Markup.inlineKeyboard([
-          Markup.button.callback(
-            '✅ Approve',
-            `topup_approve:${transaction.id}`,
-          ),
-          Markup.button.callback('❌ Reject', `topup_reject:${transaction.id}`),
+          [
+            Markup.button.callback(
+              '✅ Approve',
+              `topup_approve:${transaction.id}`,
+            ),
+            Markup.button.callback(
+              '❌ Reject',
+              `topup_reject:${transaction.id}`,
+            ),
+          ],
         ]),
-      },
-    );
+      });
 
-    ctx.session.topUpAmount = undefined;
+      ctx.session.topUpAmount = undefined;
 
-    await ctx.reply(
-      '✅ Your request is under review. You will be notified once confirmed.',
-    );
+      await ctx.reply(
+        `⏳ *Request received!*\n\n` +
+          `Your top-up of *${amount.toLocaleString()} UZS* is under review.\n` +
+          `We'll notify you once it's confirmed — usually within a few minutes.`,
+        { parse_mode: 'Markdown' },
+      );
+    } catch (error) {
+      this.logger.error(error);
+      await ctx.reply('❌ Something went wrong. Please try again with /start');
+    }
+
     await ctx.scene.enter(SCENES.DASHBOARD);
   }
 
   @WizardStep(3)
   async handleNonPhoto(@Ctx() ctx: BotContext) {
-    await ctx.reply('❌ Please send a screenshot (photo) of your transfer:');
+    const text =
+      ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
+
+    if (text === '⬅️ Back') {
+      ctx.session.topUpAmount = undefined;
+      await ctx.scene.enter(SCENES.DASHBOARD);
+      return;
+    }
+
+    await ctx.reply(
+      `📸 Please send a *screenshot* of your transfer.\n\n_Text messages won't work here — attach a photo._`,
+      { parse_mode: 'Markdown' },
+    );
   }
 }

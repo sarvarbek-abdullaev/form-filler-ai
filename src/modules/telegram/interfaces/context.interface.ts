@@ -17,6 +17,7 @@ export interface BotSession extends Scenes.WizardSession<Scenes.WizardSessionDat
     fieldCount: number;
   };
   jobTotalPrice?: string;
+  jobsPage?: number;
 }
 
 export interface BotContext extends Scenes.WizardContext {

@@ -1,66 +1,128 @@
 import { Scene, SceneEnter, On, Ctx } from 'nestjs-telegraf';
-import { Logger } from '@nestjs/common';
 import { Markup } from 'telegraf';
-import type { BotContext } from '../../interfaces';
+
 import { SCENES } from '../../config';
 import { JobService } from '../../../job';
-import { JobStatus } from '../../../../../generated/prisma/enums';
+
+import type { BotContext } from '../../interfaces';
+
+const PAGE_SIZE = 5;
+
+const STATUS_EMOJI: Record<string, string> = {
+  PENDING: '⏳',
+  RUNNING: '⚙️',
+  PAUSED: '⏸',
+  DONE: '✅',
+  FAILED: '❌',
+  CANCELLED: '🚫',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Pending',
+  RUNNING: 'Running',
+  PAUSED: 'Paused',
+  DONE: 'Done',
+  FAILED: 'Failed',
+  CANCELLED: 'Cancelled',
+};
+
+const ACTIVE_STATUSES = new Set(['PENDING', 'RUNNING', 'PAUSED']);
+const DONE_STATUSES = new Set(['DONE', 'FAILED', 'CANCELLED']);
+
+const getNavKeyboard = (page: number, totalPages: number) => {
+  const row: string[] = [];
+  if (page > 0) row.push('◀️ Prev');
+  if (page < totalPages - 1) row.push('▶️ Next');
+  return Markup.keyboard([row, ['⬅️ Back']]).resize();
+};
+
+function buildProgressBar(percent: number): string {
+  const filled = Math.round(percent / 10);
+  return '█'.repeat(filled) + '░'.repeat(10 - filled);
+}
 
 @Scene(SCENES.MY_JOBS)
 export class MyJobsScene {
-  private readonly logger = new Logger(MyJobsScene.name);
-
   constructor(private readonly jobService: JobService) {}
 
   @SceneEnter()
   async onEnter(@Ctx() ctx: BotContext) {
+    ctx.session.jobsPage = 0;
     await this.showJobs(ctx);
   }
 
   private async showJobs(ctx: BotContext) {
-    const jobs = await this.jobService.getJobs(ctx.session.userId!);
+    const allJobs = await this.jobService.getJobs(ctx.session.userId!);
 
-    if (jobs.length === 0) {
+    if (allJobs.length === 0) {
       await ctx.reply(
-        '📭 You have no jobs yet.',
-        Markup.keyboard([['🔙 Back']]).resize(),
+        `📭 *No submissions yet*\n\nStart your first auto-fill and results will appear here.`,
+        { parse_mode: 'Markdown', ...Markup.keyboard([['⬅️ Back']]).resize() },
       );
       return;
     }
 
-    await ctx.reply('📋 *Your Jobs:*', {
-      parse_mode: 'Markdown',
-      ...Markup.keyboard([['🔙 Back']]).resize(),
-    });
+    const page = ctx.session.jobsPage ?? 0;
+    const totalPages = Math.ceil(allJobs.length / PAGE_SIZE);
+    const paginated = allJobs.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-    for (const job of jobs) {
-      const statusEmoji = {
-        [JobStatus.PENDING]: '⏳',
-        [JobStatus.RUNNING]: '⚙️',
-        [JobStatus.PAUSED]: '⏸',
-        [JobStatus.DONE]: '✅',
-        [JobStatus.FAILED]: '❌',
-        [JobStatus.CANCELLED]: '🚫',
-      }[job.status];
+    const active = paginated.filter((j) => ACTIVE_STATUSES.has(j.status));
+    const done = paginated.filter((j) => DONE_STATUSES.has(j.status));
 
+    const formatJob = (job: (typeof allJobs)[0]) => {
       const percent =
         job.entries > 0 ? Math.round((job.progress / job.entries) * 100) : 0;
+      const date = job.createdAt.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
 
-      await ctx.reply(
-        `${statusEmoji} *${job.name}* — #${job.id}\n` +
-          `📄 Multi-page: ${job.isMultiPage ? 'Yes' : 'No'}\n` +
-          `🔢 Progress: ${job.progress}/${job.entries} (${percent}%)\n` +
-          `📅 ${job.createdAt.toLocaleDateString()}`,
-        { parse_mode: 'Markdown' },
+      return (
+        `${STATUS_EMOJI[job.status]} *${job.name}*\n` +
+        `Status: ${STATUS_LABEL[job.status]}  •  ${date}\n` +
+        `${buildProgressBar(percent)} ${job.progress}/${job.entries} (${percent}%)`
       );
+    };
+
+    let message = `📋 *Your Submissions* (${allJobs.length}) — Page ${page + 1}/${totalPages}\n\n`;
+
+    if (active.length > 0) {
+      message += `*🔄 Active*\n`;
+      message += active.map(formatJob).join('\n\n');
     }
+
+    if (done.length > 0) {
+      if (active.length > 0) message += '\n\n';
+      message += `*✔️ Completed*\n`;
+      message += done.map(formatJob).join('\n\n');
+    }
+
+    await ctx.reply(message, {
+      parse_mode: 'Markdown',
+      ...getNavKeyboard(page, totalPages),
+    });
   }
 
   @On('text')
   async onText(@Ctx() ctx: BotContext) {
     const text = ctx.message && 'text' in ctx.message ? ctx.message.text : '';
-    if (text === '🔙 Back') {
-      await ctx.scene.enter(SCENES.DASHBOARD);
+
+    switch (text) {
+      case '▶️ Next':
+        ctx.session.jobsPage = (ctx.session.jobsPage ?? 0) + 1;
+        await this.showJobs(ctx);
+        break;
+
+      case '◀️ Prev':
+        ctx.session.jobsPage = Math.max(0, (ctx.session.jobsPage ?? 0) - 1);
+        await this.showJobs(ctx);
+        break;
+
+      case '⬅️ Back':
+        ctx.session.jobsPage = undefined;
+        await ctx.scene.enter(SCENES.DASHBOARD);
+        break;
     }
   }
 }
