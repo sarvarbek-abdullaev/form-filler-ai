@@ -25,7 +25,6 @@ export class BalanceGuard implements CanActivate {
     if (!account) return false;
 
     const balance = Number(account.user.balance?.amount ?? 0);
-    if (!balance) return false;
 
     // @ts-ignore
     const jobId = ctx.match ? parseInt(ctx.match[1]) : null;
