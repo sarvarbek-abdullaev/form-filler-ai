@@ -27,6 +27,9 @@ export class DashboardScene {
       [this.t.t('dashboard.btn_top_up', l)],
       [
         this.t.t('dashboard.btn_history', l),
+        this.t.t('dashboard.btn_support', l),
+      ],
+      [
         this.t.t('dashboard.btn_settings', l),
         this.t.t('dashboard.btn_profile', l),
       ],
@@ -80,6 +83,10 @@ export class DashboardScene {
 
       case this.t.t('dashboard.btn_settings', l):
         await ctx.scene.enter(SCENES.SETTINGS);
+        break;
+
+      case this.t.t('dashboard.btn_support', l):
+        await ctx.scene.enter(SCENES.SUPPORT);
         break;
 
       default:

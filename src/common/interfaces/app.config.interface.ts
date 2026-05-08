@@ -7,4 +7,6 @@ export interface IAppConfig {
   admins: string;
   redisUrl: string;
   geminiApiKey: string;
+  supportEmail: string;
+  supportTelegram: string;
 }

@@ -7,4 +7,5 @@ export const SCENES = {
   MY_JOBS: 'scenes.my_jobs',
   NEW_JOB: 'scenes.new_job',
   SETTINGS: 'scenes.settings',
+  SUPPORT: 'scenes.support',
 } as const;

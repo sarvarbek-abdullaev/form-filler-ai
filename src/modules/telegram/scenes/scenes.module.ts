@@ -10,6 +10,7 @@ import { JobModule } from '../../job';
 import { FormAnalyzerModule } from '../../form-analyzer';
 import { TranslateModule } from '../../translate';
 import { SettingsScene } from './settings/settings.scene';
+import { SupportScene } from './scenes/support.scene';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SettingsScene } from './settings/settings.scene';
     NewJobScene,
     MyJobsScene,
     SettingsScene,
+    SupportScene,
   ],
   exports: [
     AuthScene,
@@ -34,6 +36,7 @@ import { SettingsScene } from './settings/settings.scene';
     NewJobScene,
     MyJobsScene,
     SettingsScene,
+    SupportScene,
   ],
 })
 export class ScenesModule {}

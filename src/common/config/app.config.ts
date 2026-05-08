@@ -10,6 +10,8 @@ export const validationSchema = Joi.object({
   ADMINS: Joi.string().required(),
   REDIS_URL: Joi.string().required(),
   GEMINI_API_KEY: Joi.string().required(),
+  SUPPORT_EMAIL: Joi.string().required(),
+  SUPPORT_TELEGRAM: Joi.string().required(),
 });
 
 export default (): IAppConfig => ({
@@ -21,4 +23,6 @@ export default (): IAppConfig => ({
   admins: process.env.ADMINS || '',
   redisUrl: process.env.REDIS_URL || '',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
+  supportEmail: process.env.SUPPORT_EMAIL || '',
+  supportTelegram: process.env.SUPPORT_TELEGRAM || '',
 });
