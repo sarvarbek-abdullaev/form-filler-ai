@@ -8,10 +8,32 @@ import { NewJobScene } from './new-job/new-job.scene';
 import { MyJobsScene } from './my-jobs/my-jobs.scene';
 import { JobModule } from '../../job';
 import { FormAnalyzerModule } from '../../form-analyzer';
+import { TranslateModule } from '../../translate';
+import { SettingsScene } from './settings/settings.scene';
 
 @Module({
-  imports: [UserModule, BalanceModule, JobModule, FormAnalyzerModule],
-  providers: [AuthScene, DashboardScene, TopUpScene, NewJobScene, MyJobsScene],
-  exports: [AuthScene, DashboardScene, TopUpScene, NewJobScene, MyJobsScene],
+  imports: [
+    UserModule,
+    BalanceModule,
+    JobModule,
+    FormAnalyzerModule,
+    TranslateModule,
+  ],
+  providers: [
+    AuthScene,
+    DashboardScene,
+    TopUpScene,
+    NewJobScene,
+    MyJobsScene,
+    SettingsScene,
+  ],
+  exports: [
+    AuthScene,
+    DashboardScene,
+    TopUpScene,
+    NewJobScene,
+    MyJobsScene,
+    SettingsScene,
+  ],
 })
 export class ScenesModule {}

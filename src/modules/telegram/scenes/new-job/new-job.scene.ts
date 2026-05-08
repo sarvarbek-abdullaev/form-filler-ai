@@ -21,6 +21,28 @@ const clearJobSession = (ctx: BotContext) => {
   ctx.session.jobEntries = undefined;
   ctx.session.jobAnalysis = undefined;
   ctx.session.jobTotalPrice = undefined;
+  ctx.session.jobPricePerEntry = undefined;
+};
+
+const getEntriesKeyboard = (formAnalyzerService: FormAnalyzerService) => {
+  const presets = [10, 25, 50, 75, 100];
+  const buttons = presets.map((e) => {
+    const discount = formAnalyzerService.getLoyaltyDiscountPercent(e);
+    return discount > 0 ? `${e} (-${discount}%)` : `${e}`;
+  });
+
+  return Markup.keyboard([
+    buttons.slice(0, 2),
+    buttons.slice(2, 4),
+    [buttons[4]],
+    ['⬅️ Back'],
+  ]).resize();
+};
+
+// Safely parse entry count from preset labels like "25 (-15%)" or plain "10"
+const parseEntryText = (text: string): number => {
+  const match = text.match(/^(\d+)/);
+  return match ? parseInt(match[1], 10) : NaN;
 };
 
 @Wizard(SCENES.NEW_JOB)
@@ -32,6 +54,8 @@ export class NewJobScene {
     private readonly formAnalyzerService: FormAnalyzerService,
   ) {}
 
+  // ─── Step 1: Ask for URL ────────────────────────────────────────────────────
+
   @WizardStep(1)
   async askUrl(@Ctx() ctx: BotContext) {
     await ctx.reply(
@@ -42,6 +66,8 @@ export class NewJobScene {
     );
     ctx.wizard.next();
   }
+
+  // ─── Step 2: Validate URL & analyze ─────────────────────────────────────────
 
   @WizardStep(2)
   async validateUrl(@Ctx() ctx: BotContext) {
@@ -58,9 +84,9 @@ export class NewJobScene {
       await ctx.reply(
         `❌ That doesn't look like a Google Form URL.\n\n` +
           `Make sure it starts with:\n\`${GOOGLE_FORM_PREFIX}\``,
-        { parse_mode: 'Markdown' },
+        { parse_mode: 'Markdown', ...getBackKeyboard() },
       );
-      return;
+      return; // stay on step 2, keyboard restored
     }
 
     const analyzing = await ctx.reply('🔍 Analyzing form, please wait...');
@@ -77,6 +103,7 @@ export class NewJobScene {
         pageCount: analysis.pageCount,
         fieldCount: analysis.fieldCount,
       };
+      ctx.session.jobPricePerEntry = price.formatted;
 
       const discountLine =
         price.discountPercent > 0
@@ -97,41 +124,18 @@ export class NewJobScene {
           `💰 Price per submission: *${price.formatted}*\n` +
           `   ├ Base: ${price.basePrice} UZS\n` +
           `   ${complexityConnector} Complexity fee: +${price.fieldSurcharge} UZS (${analysis.fieldCount} fields)` +
-          discountLine,
-        { parse_mode: 'Markdown' },
-      );
-
-      const getEntriesKeyboard = () => {
-        const presets = [10, 25, 50, 75, 100];
-        const buttons = presets.map((e) => {
-          const discount =
-            this.formAnalyzerService.getLoyaltyDiscountPercent(e);
-          return discount > 0 ? `${e} (-${discount}%)` : `${e}`;
-        });
-
-        return Markup.keyboard([
-          buttons.slice(0, 2),
-          buttons.slice(2, 4),
-          [buttons[4]],
-          ['⬅️ Back'],
-        ]).resize();
-      };
-
-      await ctx.reply(
-        `🔢 *How many entries?*\n\n` +
-          `Type any number from 1 to ${MAX_ENTRIES}, or pick a preset:\n\n` +
-          `🎁 *Loyalty discounts:*\n` +
-          `• 11–30 entries: *15% off*\n` +
-          `• 31–70 entries: *25% off*\n` +
-          `• 71–120 entries: *40% off*\n` +
-          `• 121+ entries: *55% off*`,
+          discountLine +
+          `\n\n_Is this the right form?_`,
         {
           parse_mode: 'Markdown',
-          ...getEntriesKeyboard(),
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback('✅ Yes, continue', 'job_confirm_form')],
+            [Markup.button.callback('❌ Wrong URL', 'job_wrong_url')],
+          ]),
         },
       );
 
-      ctx.wizard.next();
+      ctx.wizard.next(); // → step 3 (waiting for inline action)
     } catch (e) {
       this.logger.error(e);
       await ctx.telegram.editMessageText(
@@ -144,25 +148,92 @@ export class NewJobScene {
           `• The URL is incorrect\n` +
           `• The form has been deleted\n\n` +
           `Please check and try a different URL:`,
+        { parse_mode: 'Markdown' },
       );
+      // stay on step 2 so user can retry — keyboard already shown above
     }
   }
 
+  // ─── Step 3: Awaiting form confirmation (inline buttons) ────────────────────
+
   @WizardStep(3)
+  async awaitFormConfirmation(@Ctx() ctx: BotContext) {
+    // This step only handles text/stray messages while waiting for inline action.
+    // The actual logic lives in @Action handlers below.
+    await ctx.reply(
+      `👆 Please use the buttons above to confirm or change the URL.`,
+    );
+  }
+
+  @Action('job_confirm_form')
+  async onConfirmForm(@Ctx() ctx: BotContext) {
+    await ctx.answerCbQuery();
+    await ctx.editMessageReplyMarkup(undefined); // remove inline buttons
+
+    await ctx.reply(
+      `🔢 *How many entries?*\n\n` +
+        `Type any number from 1 to ${MAX_ENTRIES}, or pick a preset:\n\n` +
+        `🎁 *Loyalty discounts:*\n` +
+        `• 11–30 entries: *15% off*\n` +
+        `• 31–70 entries: *25% off*\n` +
+        `• 71–120 entries: *40% off*\n` +
+        `• 121+ entries: *55% off*`,
+      {
+        parse_mode: 'Markdown',
+        ...getEntriesKeyboard(this.formAnalyzerService),
+      },
+    );
+
+    ctx.wizard.next(); // → step 4
+  }
+
+  @Action('job_wrong_url')
+  async onWrongUrl(@Ctx() ctx: BotContext) {
+    await ctx.answerCbQuery();
+    clearJobSession(ctx);
+    await ctx.editMessageReplyMarkup(undefined);
+
+    await ctx.reply(`🔗 No problem — send me the correct Google Form URL:`, {
+      parse_mode: 'Markdown',
+      ...getBackKeyboard(),
+    });
+
+    ctx.wizard.selectStep(2); // back to URL validation
+  }
+
+  // ─── Step 4: Validate entry count & show order summary ──────────────────────
+
+  @WizardStep(4)
   async validateEntries(@Ctx() ctx: BotContext) {
     const text =
       ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
 
     if (text === '⬅️ Back') {
-      ctx.wizard.back();
-      await ctx.reply(`🔗 Send me the Google Form URL again:`, {
-        parse_mode: 'Markdown',
-        ...getBackKeyboard(),
-      });
+      // Go back to form confirmation — re-show the cached analysis
+      const a = ctx.session.jobAnalysis!;
+      const pricePerEntry = ctx.session.jobPricePerEntry ?? '—';
+
+      await ctx.reply(
+        `📋 *${a.title}*\n` +
+          `━━━━━━━━━━━━━━━━━━\n` +
+          `📄 Pages: ${a.pageCount}\n` +
+          `❓ Fields: ${a.fieldCount}\n\n` +
+          `💰 Price per submission: *${pricePerEntry}*\n\n` +
+          `_Is this the right form?_`,
+        {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback('✅ Yes, continue', 'job_confirm_form')],
+            [Markup.button.callback('❌ Wrong URL', 'job_wrong_url')],
+          ]),
+        },
+      );
+
+      ctx.wizard.selectStep(3); // back to awaiting form confirmation
       return;
     }
 
-    const entries = parseInt(text);
+    const entries = parseEntryText(text);
 
     if (isNaN(entries) || entries <= 0 || entries > MAX_ENTRIES) {
       await ctx.reply(
@@ -189,7 +260,6 @@ export class NewJobScene {
         price.discountPercent > 0
           ? `\n   └ Loyalty discount: -${price.discountPercent}% (-${price.discountAmount} UZS)`
           : '';
-
       const complexityConnector = price.discountPercent > 0 ? '├' : '└';
 
       await ctx.telegram.deleteMessage(ctx.chat!.id, calculating.message_id);
@@ -198,8 +268,8 @@ export class NewJobScene {
         `📋 *Order Summary*\n` +
           `━━━━━━━━━━━━━━━━━━\n` +
           `📝 *${ctx.session.jobName}*\n` +
-          `📄 Pages: ${analysis?.pageCount ?? 1}\n` +
-          `❓ Fields: ${analysis?.fieldCount ?? '?'}\n` +
+          `📄 Pages: ${analysis.pageCount}\n` +
+          `❓ Fields: ${analysis.fieldCount}\n` +
           `🔢 Entries: *${entries}*\n\n` +
           `💳 *Price Breakdown*\n` +
           `━━━━━━━━━━━━━━━━━━\n` +
@@ -224,12 +294,14 @@ export class NewJobScene {
         ctx.chat!.id,
         calculating.message_id,
         undefined,
-        `❌ *Something went wrong while calculating the price.*\n\nPlease try again or send a different URL:`,
+        `❌ *Something went wrong while calculating the price.*\n\nPlease try again:`,
         { parse_mode: 'Markdown' },
       );
-      return;
+      // stay on step 4, user can re-enter entry count
     }
   }
+
+  // ─── Order actions ───────────────────────────────────────────────────────────
 
   @Action('job_change_entries')
   async onChangeEntries(@Ctx() ctx: BotContext) {
@@ -238,7 +310,7 @@ export class NewJobScene {
       `✏️ *Change entries*\n\nEnter a new number from 1 to ${MAX_ENTRIES}:\n\n_More entries = better loyalty discount 🎁_`,
       { parse_mode: 'Markdown' },
     );
-    ctx.wizard.selectStep(3);
+    ctx.wizard.selectStep(4);
   }
 
   @Action('job_confirm')

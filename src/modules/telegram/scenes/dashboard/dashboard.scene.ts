@@ -1,86 +1,119 @@
 import { UseGuards } from '@nestjs/common';
-
 import { Scene, SceneEnter, On, Ctx, Message } from 'nestjs-telegraf';
 import { Markup } from 'telegraf';
 
 import { SCENES } from '../../config';
 import { TelegramAuthGuard } from '../../guards';
 import { BalanceService } from '../../../balance';
-
+import { TranslateService } from '../../../translate';
 import type { BotContext } from '../../interfaces';
-
-const getKeyboard = () =>
-  Markup.keyboard([
-    ['⚡ Auto-Fill Form'],
-    ['💳 Top Up'],
-    ['📋 History', '👤 Profile'],
-  ]).resize();
-
-const getProfileKeyboard = () =>
-  Markup.keyboard([['🚪 Logout'], ['⬅️ Back']]).resize();
 
 @UseGuards(TelegramAuthGuard)
 @Scene(SCENES.DASHBOARD)
 export class DashboardScene {
-  constructor(private readonly balanceService: BalanceService) {}
+  constructor(
+    private readonly balanceService: BalanceService,
+    private readonly t: TranslateService,
+  ) {}
+
+  private lang(ctx: BotContext) {
+    return ctx.session.locale ?? ctx.from?.language_code ?? 'en';
+  }
+
+  private getKeyboard(ctx: BotContext) {
+    const l = this.lang(ctx);
+    return Markup.keyboard([
+      [this.t.t('dashboard.btn_auto_fill', l)],
+      [this.t.t('dashboard.btn_top_up', l)],
+      [
+        this.t.t('dashboard.btn_history', l),
+        this.t.t('dashboard.btn_settings', l),
+        this.t.t('dashboard.btn_profile', l),
+      ],
+    ]).resize();
+  }
+
+  private getProfileKeyboard(ctx: BotContext) {
+    const l = this.lang(ctx);
+    return Markup.keyboard([
+      [this.t.t('dashboard.btn_logout', l)],
+      [this.t.t('dashboard.btn_back', l)],
+    ]).resize();
+  }
 
   @SceneEnter()
   async onEnter(@Ctx() ctx: BotContext) {
-    await ctx.reply('🏠 Dashboard', getKeyboard());
+    await ctx.reply(
+      this.t.t('dashboard.enter', this.lang(ctx)),
+      this.getKeyboard(ctx),
+    );
   }
 
   @On('text')
   async onText(@Ctx() ctx: BotContext, @Message('text') text: string) {
+    const l = this.lang(ctx);
+
     switch (text) {
-      case '⚡ Auto-Fill Form':
+      case this.t.t('dashboard.btn_auto_fill', l):
         await ctx.scene.enter(SCENES.NEW_JOB);
         break;
 
-      case '📋 History':
-        await ctx.scene.enter(SCENES.MY_JOBS);
-        break;
-
-      case '💳 Top Up':
+      case this.t.t('dashboard.btn_top_up', l):
         await ctx.scene.enter(SCENES.TOP_UP);
         break;
 
-      case '👤 Profile':
+      case this.t.t('dashboard.btn_history', l):
+        await ctx.scene.enter(SCENES.MY_JOBS);
+        break;
+
+      case this.t.t('dashboard.btn_profile', l):
         await this.handleProfile(ctx);
         break;
 
-      case '🚪 Logout':
+      case this.t.t('dashboard.btn_logout', l):
         await this.handleLogout(ctx);
         break;
 
-      case '⬅️ Back':
+      case this.t.t('dashboard.btn_back', l):
         await ctx.scene.reenter();
         break;
 
+      case this.t.t('dashboard.btn_settings', l):
+        await ctx.scene.enter(SCENES.SETTINGS);
+        break;
+
       default:
-        await ctx.reply('Use the menu below 👇', getKeyboard());
+        await ctx.reply(
+          this.t.t('dashboard.use_menu', l),
+          this.getKeyboard(ctx),
+        );
     }
   }
 
   private async handleProfile(ctx: BotContext) {
+    const l = this.lang(ctx);
     const balance = await this.balanceService.getBalance(ctx.session.userId!);
     const amount = Number(balance?.amount ?? 0).toLocaleString();
 
     await ctx.reply(
-      `👤 *Profile*\n\n` +
-        `Name: ${ctx.session.name ?? '—'}\n` +
-        `Phone: ${ctx.session.phone ?? '—'}\n\n` +
-        `💰 Balance: *${amount} UZS*`,
-      { parse_mode: 'Markdown', ...getProfileKeyboard() },
+      `${this.t.t('dashboard.profile_title', l)}\n\n` +
+        `${this.t.t('dashboard.profile_name', l)}: ${ctx.session.name ?? '—'}\n` +
+        `${this.t.t('dashboard.profile_phone', l)}: ${ctx.session.phone ?? '—'}\n\n` +
+        `${this.t.t('dashboard.profile_balance', l)}: *${amount} UZS*`,
+      { parse_mode: 'Markdown', ...this.getProfileKeyboard(ctx) },
     );
   }
 
   private async handleLogout(ctx: BotContext) {
+    const l = this.lang(ctx);
+
     ctx.session.userId = undefined;
     ctx.session.name = undefined;
     ctx.session.phone = undefined;
     ctx.session.mode = undefined;
+    ctx.session.locale = undefined;
 
-    await ctx.reply('👋 See you next time!');
+    await ctx.reply(this.t.t('dashboard.farewell', l));
     await ctx.scene.enter(SCENES.AUTH);
   }
 }

@@ -1,0 +1,8 @@
+{
+  "enter": "⚙️ Settings",
+  "language": "🌐 Language",
+  "language_current": "Current language: {lang}",
+  "language_changed": "✅ Language changed!",
+  "btn_language": "🌐 Language",
+  "btn_back": "⬅️ Back"
+}

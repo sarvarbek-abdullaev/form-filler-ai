@@ -4,6 +4,7 @@ export interface BotSession extends Scenes.WizardSession<Scenes.WizardSessionDat
   userId?: number;
   phone?: string;
   name?: string;
+  locale?: string;
   mode?: 'edit_name' | 'edit_email';
   isAuth?: boolean;
   topUpAmount?: number;
@@ -18,6 +19,7 @@ export interface BotSession extends Scenes.WizardSession<Scenes.WizardSessionDat
   };
   jobTotalPrice?: string;
   jobsPage?: number;
+  jobPricePerEntry?: string;
 }
 
 export interface BotContext extends Scenes.WizardContext {

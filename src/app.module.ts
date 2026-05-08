@@ -10,6 +10,7 @@ import {
   UserModule,
   GeminiModule,
   FormResponseGeneratorModule,
+  TranslateModule,
 } from './modules';
 import { IAppConfig, PrismaModule, validationSchema } from './common';
 import { BullModule } from '@nestjs/bullmq';
@@ -39,6 +40,7 @@ import { BullModule } from '@nestjs/bullmq';
     FormAnalyzerModule,
     GeminiModule,
     FormResponseGeneratorModule,
+    TranslateModule,
   ],
   controllers: [AppController],
   providers: [AppService],

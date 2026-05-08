@@ -1,0 +1,16 @@
+{
+  "enter": "🏠 Главная",
+  "use_menu": "Используйте меню ниже 👇",
+  "profile_title": "👤 *Профиль*",
+  "profile_name": "Имя",
+  "profile_phone": "Телефон",
+  "profile_balance": "💰 Баланс",
+  "farewell": "👋 До свидания!",
+  "btn_auto_fill": "⚡ Авто-заполнение",
+  "btn_top_up": "💳 Пополнить",
+  "btn_history": "📋 История",
+  "btn_profile": "👤 Профиль",
+  "btn_logout": "🚪 Выйти",
+  "btn_back": "⬅️ Назад",
+  "btn_settings": "⚙️ Настройки"
+}

@@ -1,0 +1,16 @@
+{
+  "enter": "🏠 Dashboard",
+  "use_menu": "Use the menu below 👇",
+  "profile_title": "👤 *Profile*",
+  "profile_name": "Name",
+  "profile_phone": "Phone",
+  "profile_balance": "💰 Balance",
+  "farewell": "👋 See you next time!",
+  "btn_auto_fill": "⚡ Auto-Fill Form",
+  "btn_top_up": "💳 Top Up",
+  "btn_history": "📋 History",
+  "btn_profile": "👤 Profile",
+  "btn_logout": "🚪 Logout",
+  "btn_back": "⬅️ Back",
+  "btn_settings": "⚙️ Settings"
+}

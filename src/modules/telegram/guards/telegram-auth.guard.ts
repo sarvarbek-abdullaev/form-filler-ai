@@ -38,6 +38,7 @@ export class TelegramAuthGuard implements CanActivate {
     ctx.session.userId = account.user.id;
     ctx.session.name = account.user.name ?? undefined;
     ctx.session.phone = account.user.phone;
+    ctx.session.locale = account.user.locale;
 
     return true;
   }

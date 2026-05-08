@@ -1,0 +1,8 @@
+{
+  "enter": "⚙️ Настройки",
+  "language": "🌐 Язык",
+  "language_current": "Текущий язык: {lang}",
+  "language_changed": "✅ Язык изменён!",
+  "btn_language": "🌐 Язык",
+  "btn_back": "⬅️ Назад"
+}

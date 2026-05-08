@@ -1,0 +1,16 @@
+{
+  "enter": "🏠 Bosh sahifa",
+  "use_menu": "Quyidagi menyudan foydalaning 👇",
+  "profile_title": "👤 *Profil*",
+  "profile_name": "Ism",
+  "profile_phone": "Telefon",
+  "profile_balance": "💰 Balans",
+  "farewell": "👋 Ko'rishguncha!",
+  "btn_auto_fill": "⚡ Formani to'ldirish",
+  "btn_top_up": "💳 Hisob to'ldirish",
+  "btn_history": "📋 Tarix",
+  "btn_profile": "👤 Profil",
+  "btn_logout": "🚪 Chiqish",
+  "btn_back": "⬅️ Orqaga",
+  "btn_settings": "⚙️ Sozlamalar"
+}
