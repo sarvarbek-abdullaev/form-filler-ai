@@ -16,7 +16,6 @@ import { BalanceService } from '../../balance';
 import { AdminGuard } from '../decorators/admin.decorator';
 import { JobService } from '../../job';
 import { Markup } from 'telegraf';
-import { BalanceGuard } from '../guards';
 import { TranslateService } from '../../translate';
 
 @Public()
@@ -185,7 +184,7 @@ export class TelegramUpdate {
     await ctx.answerCbQuery('❌ Rejected');
   }
 
-  @UseGuards(BalanceGuard)
+  // @UseGuards(BalanceGuard)
   @Action(/job_run:(\d+)/)
   async onRun(@Ctx() ctx: BotContext & { match: RegExpExecArray }) {
     const jobId = parseInt(ctx.match[1]);

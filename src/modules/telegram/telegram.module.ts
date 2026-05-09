@@ -24,6 +24,9 @@ import { TranslateModule } from '../translate';
       useFactory: (config: ConfigService<IAppConfig>) => ({
         token: config.getOrThrow('telegramBotToken', { infer: true }),
         middlewares: [session()],
+        launchOptions: {
+          dropPendingUpdates: true,
+        },
       }),
     }),
     ScenesModule,

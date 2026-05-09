@@ -9,6 +9,7 @@ import { FormSubmitterService } from '../form-submitter';
 import { FormAnalyzerService } from '../form-analyzer';
 import { FormResponseGeneratorModule } from '../form-response-generator';
 import { TranslateModule } from '../translate';
+import { BalanceModule } from '../balance';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { TranslateModule } from '../translate';
     UserModule,
     FormResponseGeneratorModule,
     TranslateModule,
+    BalanceModule,
   ],
   controllers: [JobController],
   providers: [

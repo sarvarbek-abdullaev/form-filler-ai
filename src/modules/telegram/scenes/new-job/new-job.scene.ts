@@ -7,6 +7,7 @@ import { JobService } from '../../../job';
 import { FormAnalyzerService } from '../../../form-analyzer';
 import { TranslateService } from '../../../translate';
 import type { BotContext } from '../../interfaces';
+import { BalanceService } from '../../../balance';
 
 const MAX_ENTRIES = 200;
 const GOOGLE_FORM_PREFIX = 'https://docs.google.com/forms';
@@ -48,6 +49,7 @@ export class NewJobScene {
     private readonly jobService: JobService,
     private readonly formAnalyzerService: FormAnalyzerService,
     private readonly t: TranslateService,
+    private readonly balanceService: BalanceService,
   ) {}
 
   private lang(ctx: BotContext) {
@@ -345,6 +347,39 @@ export class NewJobScene {
     await ctx.answerCbQuery('⏳');
 
     try {
+      const balance = await this.balanceService.getBalance(ctx.session.userId!);
+      const { price } = await this.formAnalyzerService.analyze(
+        ctx.session.jobFormUrl!,
+        ctx.session.jobEntries!,
+      );
+      const required = price!.totalPrice;
+
+      if (balance!.amount.lessThan(required)) {
+        const short = required - +balance!.amount;
+
+        await ctx.answerCbQuery('💸 Not enough balance');
+
+        await ctx.reply(
+          `💸 *Insufficient balance*\n\n` +
+            `💰 Your balance: *${balance!.amount.toString()} UZS*\n` +
+            `📉 Required: *${price?.totalFormatted}*\n` +
+            `❗ Missing: *${short} UZS*\n\n` +
+            `Please top up and try again`,
+          {
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+              [Markup.button.callback('💳 Top Up Balance', 'balance_topup')],
+            ]),
+            reply_parameters: ctx.callbackQuery?.message
+              ? { message_id: ctx.callbackQuery.message.message_id }
+              : undefined,
+          },
+        );
+        return;
+      }
+
+      await this.balanceService.debit(ctx.session.userId!, required, '');
+
       const job = await this.jobService.createJob({
         userId: ctx.session.userId!,
         name: ctx.session.jobName!,
@@ -396,5 +431,11 @@ export class NewJobScene {
     clearJobSession(ctx);
     await ctx.editMessageText(this.t.t('new_job.cancelled', l));
     await ctx.scene.enter(SCENES.DASHBOARD);
+  }
+
+  @Action('balance_topup')
+  async onTopUp(@Ctx() ctx: BotContext) {
+    await ctx.answerCbQuery();
+    await ctx.scene.enter(SCENES.TOP_UP);
   }
 }

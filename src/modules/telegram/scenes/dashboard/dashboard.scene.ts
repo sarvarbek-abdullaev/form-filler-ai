@@ -22,17 +22,13 @@ export class DashboardScene {
 
   private getKeyboard(ctx: BotContext) {
     const l = this.lang(ctx);
+    const btn = (key: string) => this.t.t(`dashboard.${key}`, l);
+
     return Markup.keyboard([
-      [this.t.t('dashboard.btn_auto_fill', l)],
-      [this.t.t('dashboard.btn_top_up', l)],
-      [
-        this.t.t('dashboard.btn_history', l),
-        this.t.t('dashboard.btn_support', l),
-      ],
-      [
-        this.t.t('dashboard.btn_settings', l),
-        this.t.t('dashboard.btn_profile', l),
-      ],
+      [btn('btn_auto_fill')],
+      [btn('btn_top_up')],
+      [btn('btn_history'), btn('btn_profile')],
+      [btn('btn_settings'), btn('btn_support')],
     ]).resize();
   }
 
