@@ -413,6 +413,7 @@ export class NewJobScene {
           ]),
         },
       );
+      await ctx.scene.enter(SCENES.DASHBOARD);
     } catch (e) {
       this.logger.error(e);
       await ctx.answerCbQuery('❌');
