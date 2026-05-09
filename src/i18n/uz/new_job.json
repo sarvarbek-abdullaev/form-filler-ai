@@ -27,5 +27,8 @@
   "btn_run_now": "▶️ Hozir ishga tushirish",
   "progress": "⚙️ *Vazifa #{id} bajarilmoqda...*\n\n{bar} {percent}%\n🔢 {done}/{total} yozuv yuborildi",
   "completed": "✅ *Vazifa #{id} \"{name}\" yakunlandi!*\n\n🔢 {done}/{total} yozuv yuborildi.",
-  "failed": "❌ *Vazifa #{id} muvaffaqiyatsiz tugadi!*"
+  "failed": "❌ *Vazifa #{id} muvaffaqiyatsiz tugadi!*",
+  "insufficient_cb": "💸 Balans yetarli emas",
+  "insufficient": "💸 *Balans yetarli emas*\n\n💰 Balansingiz: *{balance} UZS*\n📉 Kerak: *{required}*\n❗ Yetishmaydi: *{missing} UZS*\n\nIltimos, balansni to'ldiring va qayta urinib ko'ring",
+  "btn_top_up": "💳 Balansni to'ldirish"
 }

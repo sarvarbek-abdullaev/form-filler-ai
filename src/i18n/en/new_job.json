@@ -27,5 +27,8 @@
   "btn_run_now": "▶️ Run Now",
   "progress": "⚙️ *Job #{id} running...*\n\n{bar} {percent}%\n🔢 {done}/{total} entries submitted",
   "completed": "✅ *Job #{id} \"{name}\" completed!*\n\n🔢 {done}/{total} entries submitted.",
-  "failed": "❌ *Job #{id} failed!*"
+  "failed": "❌ *Job #{id} failed!*",
+  "insufficient_cb": "💸 Not enough balance",
+  "insufficient": "💸 *Insufficient balance*\n\n💰 Your balance: *{balance} UZS*\n📉 Required: *{required}*\n❗ Missing: *{missing} UZS*\n\nPlease top up and try again",
+  "btn_top_up": "💳 Top Up Balance"
 }

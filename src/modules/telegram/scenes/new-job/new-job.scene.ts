@@ -357,18 +357,23 @@ export class NewJobScene {
       if (balance!.amount.lessThan(required)) {
         const short = required - +balance!.amount;
 
-        await ctx.answerCbQuery('💸 Not enough balance');
+        await ctx.answerCbQuery(this.t.t('new_job.insufficient_cb', l));
 
         await ctx.reply(
-          `💸 *Insufficient balance*\n\n` +
-            `💰 Your balance: *${balance!.amount.toString()} UZS*\n` +
-            `📉 Required: *${price?.totalFormatted}*\n` +
-            `❗ Missing: *${short} UZS*\n\n` +
-            `Please top up and try again`,
+          this.t.t('new_job.insufficient', l, {
+            balance: balance!.amount.toString(),
+            required: price?.totalFormatted ?? '—',
+            missing: short,
+          }),
           {
             parse_mode: 'Markdown',
             ...Markup.inlineKeyboard([
-              [Markup.button.callback('💳 Top Up Balance', 'balance_topup')],
+              [
+                Markup.button.callback(
+                  this.t.t('new_job.btn_top_up', l),
+                  'balance_topup',
+                ),
+              ],
             ]),
             reply_parameters: ctx.callbackQuery?.message
               ? { message_id: ctx.callbackQuery.message.message_id }
