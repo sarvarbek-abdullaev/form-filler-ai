@@ -120,7 +120,9 @@ export class DashboardScene {
     ctx.session.mode = undefined;
     ctx.session.locale = undefined;
 
-    await ctx.reply(this.t.t('dashboard.farewell', l));
+    await ctx.reply(this.t.t('dashboard.farewell', l), {
+      reply_markup: { remove_keyboard: true },
+    });
     await ctx.scene.enter(SCENES.AUTH);
   }
 }
