@@ -1,18 +1,15 @@
 import { Logger } from '@nestjs/common';
-
 import { Wizard, WizardStep, Ctx, Action } from 'nestjs-telegraf';
 import { Markup } from 'telegraf';
 
 import { SCENES } from '../../config';
 import { JobService } from '../../../job';
 import { FormAnalyzerService } from '../../../form-analyzer';
-
+import { TranslateService } from '../../../translate';
 import type { BotContext } from '../../interfaces';
 
 const MAX_ENTRIES = 200;
 const GOOGLE_FORM_PREFIX = 'https://docs.google.com/forms';
-
-const getBackKeyboard = () => Markup.keyboard([['⬅️ Back']]).resize();
 
 const clearJobSession = (ctx: BotContext) => {
   ctx.session.jobName = undefined;
@@ -30,7 +27,6 @@ const getEntriesKeyboard = (formAnalyzerService: FormAnalyzerService) => {
     const discount = formAnalyzerService.getLoyaltyDiscountPercent(e);
     return discount > 0 ? `${e} (-${discount}%)` : `${e}`;
   });
-
   return Markup.keyboard([
     buttons.slice(0, 2),
     buttons.slice(2, 4),
@@ -39,7 +35,6 @@ const getEntriesKeyboard = (formAnalyzerService: FormAnalyzerService) => {
   ]).resize();
 };
 
-// Safely parse entry count from preset labels like "25 (-15%)" or plain "10"
 const parseEntryText = (text: string): number => {
   const match = text.match(/^(\d+)/);
   return match ? parseInt(match[1], 10) : NaN;
@@ -52,29 +47,35 @@ export class NewJobScene {
   constructor(
     private readonly jobService: JobService,
     private readonly formAnalyzerService: FormAnalyzerService,
+    private readonly t: TranslateService,
   ) {}
 
-  // ─── Step 1: Ask for URL ────────────────────────────────────────────────────
+  private lang(ctx: BotContext) {
+    return ctx.session.locale ?? ctx.from?.language_code ?? 'en';
+  }
+
+  private getBackKeyboard(ctx: BotContext) {
+    const l = this.lang(ctx);
+    return Markup.keyboard([[this.t.t('new_job.btn_back', l)]]).resize();
+  }
 
   @WizardStep(1)
   async askUrl(@Ctx() ctx: BotContext) {
-    await ctx.reply(
-      `⚡ *New Auto-Fill*\n\n` +
-        `Paste your Google Form URL below and I'll analyze it instantly.\n\n` +
-        `_Example: https://docs.google.com/forms/d/..._`,
-      { parse_mode: 'Markdown', ...getBackKeyboard() },
-    );
+    const l = this.lang(ctx);
+    await ctx.reply(this.t.t('new_job.ask_url', l), {
+      parse_mode: 'Markdown',
+      ...this.getBackKeyboard(ctx),
+    });
     ctx.wizard.next();
   }
 
-  // ─── Step 2: Validate URL & analyze ─────────────────────────────────────────
-
   @WizardStep(2)
   async validateUrl(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
     const text =
       ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
 
-    if (text === '⬅️ Back') {
+    if (text === this.t.t('new_job.btn_back', l)) {
       clearJobSession(ctx);
       await ctx.scene.enter(SCENES.DASHBOARD);
       return;
@@ -82,14 +83,13 @@ export class NewJobScene {
 
     if (!text.startsWith(GOOGLE_FORM_PREFIX)) {
       await ctx.reply(
-        `❌ That doesn't look like a Google Form URL.\n\n` +
-          `Make sure it starts with:\n\`${GOOGLE_FORM_PREFIX}\``,
-        { parse_mode: 'Markdown', ...getBackKeyboard() },
+        this.t.t('new_job.invalid_url', l, { prefix: GOOGLE_FORM_PREFIX }),
+        { parse_mode: 'Markdown', ...this.getBackKeyboard(ctx) },
       );
-      return; // stay on step 2, keyboard restored
+      return;
     }
 
-    const analyzing = await ctx.reply('🔍 Analyzing form, please wait...');
+    const analyzing = await ctx.reply(this.t.t('new_job.analyzing', l));
 
     try {
       const analysis = await this.formAnalyzerService.analyze(text, 1);
@@ -107,129 +107,141 @@ export class NewJobScene {
 
       const discountLine =
         price.discountPercent > 0
-          ? `\n   └ Loyalty discount: -${price.discountPercent}% (-${price.discountAmount} UZS)`
+          ? this.t.t('new_job.analyzed_discount', l, {
+              percent: String(price.discountPercent),
+              amount: String(price.discountAmount),
+            })
           : '';
-      const complexityConnector = price.discountPercent > 0 ? '├' : '└';
+      const connector = price.discountPercent > 0 ? '├' : '└';
 
       await ctx.telegram.editMessageText(
         ctx.chat!.id,
         analyzing.message_id,
         undefined,
-        `✅ *Form Analyzed!*\n\n` +
-          `📋 *${analysis.title}*\n` +
-          `━━━━━━━━━━━━━━━━━━\n` +
-          `📄 Pages: ${analysis.pageCount}\n` +
-          `❓ Fields: ${analysis.fieldCount}\n` +
-          `🔀 Multi-page: ${analysis.isMultiPage ? 'Yes' : 'No'}\n\n` +
-          `💰 Price per submission: *${price.formatted}*\n` +
-          `   ├ Base: ${price.basePrice} UZS\n` +
-          `   ${complexityConnector} Complexity fee: +${price.fieldSurcharge} UZS (${analysis.fieldCount} fields)` +
-          discountLine +
-          `\n\n_Is this the right form?_`,
+        this.t.t('new_job.analyzed', l, {
+          title: analysis.title,
+          pages: String(analysis.pageCount),
+          fields: String(analysis.fieldCount),
+          multipage: analysis.isMultiPage
+            ? this.t.t('new_job.multipage_yes', l)
+            : this.t.t('new_job.multipage_no', l),
+          price: price.formatted,
+          base: String(price.basePrice),
+          connector,
+          surcharge: String(price.fieldSurcharge),
+          discount: discountLine,
+        }),
         {
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
-            [Markup.button.callback('✅ Yes, continue', 'job_confirm_form')],
-            [Markup.button.callback('❌ Wrong URL', 'job_wrong_url')],
+            [
+              Markup.button.callback(
+                this.t.t('new_job.btn_confirm_form', l),
+                'job_confirm_form',
+              ),
+            ],
+            [
+              Markup.button.callback(
+                this.t.t('new_job.btn_wrong_url', l),
+                'job_wrong_url',
+              ),
+            ],
           ]),
         },
       );
 
-      ctx.wizard.next(); // → step 3 (waiting for inline action)
+      ctx.wizard.next();
     } catch (e) {
       this.logger.error(e);
       await ctx.telegram.editMessageText(
         ctx.chat!.id,
         analyzing.message_id,
         undefined,
-        `❌ *Couldn't analyze this form.*\n\n` +
-          `Possible reasons:\n` +
-          `• The form is private or restricted\n` +
-          `• The URL is incorrect\n` +
-          `• The form has been deleted\n\n` +
-          `Please check and try a different URL:`,
+        this.t.t('new_job.analyze_error', l),
         { parse_mode: 'Markdown' },
       );
-      // stay on step 2 so user can retry — keyboard already shown above
     }
   }
 
-  // ─── Step 3: Awaiting form confirmation (inline buttons) ────────────────────
-
   @WizardStep(3)
   async awaitFormConfirmation(@Ctx() ctx: BotContext) {
-    // This step only handles text/stray messages while waiting for inline action.
-    // The actual logic lives in @Action handlers below.
-    await ctx.reply(
-      `👆 Please use the buttons above to confirm or change the URL.`,
-    );
+    await ctx.reply(this.t.t('new_job.await_confirmation', this.lang(ctx)));
   }
 
   @Action('job_confirm_form')
   async onConfirmForm(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
     await ctx.answerCbQuery();
-    await ctx.editMessageReplyMarkup(undefined); // remove inline buttons
+    await ctx.editMessageReplyMarkup(undefined);
 
     await ctx.reply(
-      `🔢 *How many entries?*\n\n` +
-        `Type any number from 1 to ${MAX_ENTRIES}, or pick a preset:\n\n` +
-        `🎁 *Loyalty discounts:*\n` +
-        `• 11–30 entries: *15% off*\n` +
-        `• 31–70 entries: *25% off*\n` +
-        `• 71–120 entries: *40% off*\n` +
-        `• 121+ entries: *55% off*`,
+      this.t.t('new_job.ask_entries', l, { max: String(MAX_ENTRIES) }),
       {
         parse_mode: 'Markdown',
         ...getEntriesKeyboard(this.formAnalyzerService),
       },
     );
 
-    ctx.wizard.next(); // → step 4
+    ctx.wizard.next();
   }
 
   @Action('job_wrong_url')
   async onWrongUrl(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
     await ctx.answerCbQuery();
     clearJobSession(ctx);
     await ctx.editMessageReplyMarkup(undefined);
 
-    await ctx.reply(`🔗 No problem — send me the correct Google Form URL:`, {
+    await ctx.reply(this.t.t('new_job.wrong_url_prompt', l), {
       parse_mode: 'Markdown',
-      ...getBackKeyboard(),
+      ...this.getBackKeyboard(ctx),
     });
 
-    ctx.wizard.selectStep(2); // back to URL validation
+    ctx.wizard.selectStep(2);
   }
-
-  // ─── Step 4: Validate entry count & show order summary ──────────────────────
 
   @WizardStep(4)
   async validateEntries(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
     const text =
       ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
 
-    if (text === '⬅️ Back') {
-      // Go back to form confirmation — re-show the cached analysis
+    if (text === this.t.t('new_job.btn_back', l)) {
       const a = ctx.session.jobAnalysis!;
       const pricePerEntry = ctx.session.jobPricePerEntry ?? '—';
 
       await ctx.reply(
-        `📋 *${a.title}*\n` +
-          `━━━━━━━━━━━━━━━━━━\n` +
-          `📄 Pages: ${a.pageCount}\n` +
-          `❓ Fields: ${a.fieldCount}\n\n` +
-          `💰 Price per submission: *${pricePerEntry}*\n\n` +
-          `_Is this the right form?_`,
+        this.t.t('new_job.analyzed', l, {
+          title: a.title,
+          pages: String(a.pageCount),
+          fields: String(a.fieldCount),
+          multipage: '',
+          price: pricePerEntry,
+          base: '',
+          connector: '└',
+          surcharge: '',
+          discount: '',
+        }),
         {
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
-            [Markup.button.callback('✅ Yes, continue', 'job_confirm_form')],
-            [Markup.button.callback('❌ Wrong URL', 'job_wrong_url')],
+            [
+              Markup.button.callback(
+                this.t.t('new_job.btn_confirm_form', l),
+                'job_confirm_form',
+              ),
+            ],
+            [
+              Markup.button.callback(
+                this.t.t('new_job.btn_wrong_url', l),
+                'job_wrong_url',
+              ),
+            ],
           ]),
         },
       );
 
-      ctx.wizard.selectStep(3); // back to awaiting form confirmation
+      ctx.wizard.selectStep(3);
       return;
     }
 
@@ -237,54 +249,68 @@ export class NewJobScene {
 
     if (isNaN(entries) || entries <= 0 || entries > MAX_ENTRIES) {
       await ctx.reply(
-        `❌ Please enter a number between *1* and *${MAX_ENTRIES}*:`,
+        this.t.t('new_job.invalid_entries', l, { max: String(MAX_ENTRIES) }),
         { parse_mode: 'Markdown' },
       );
       return;
     }
 
-    const calculating = await ctx.reply('⚙️ Calculating price...');
+    const calculating = await ctx.reply(this.t.t('new_job.calculating', l));
 
     try {
       ctx.session.jobEntries = entries;
-
       const analysis = await this.formAnalyzerService.analyze(
         ctx.session.jobFormUrl!,
         entries,
       );
-
       const price = analysis.price!;
       ctx.session.jobTotalPrice = price.totalFormatted;
 
       const discountLine =
         price.discountPercent > 0
-          ? `\n   └ Loyalty discount: -${price.discountPercent}% (-${price.discountAmount} UZS)`
+          ? this.t.t('new_job.analyzed_discount', l, {
+              percent: String(price.discountPercent),
+              amount: String(price.discountAmount),
+            })
           : '';
-      const complexityConnector = price.discountPercent > 0 ? '├' : '└';
+      const connector = price.discountPercent > 0 ? '├' : '└';
 
       await ctx.telegram.deleteMessage(ctx.chat!.id, calculating.message_id);
 
       await ctx.reply(
-        `📋 *Order Summary*\n` +
-          `━━━━━━━━━━━━━━━━━━\n` +
-          `📝 *${ctx.session.jobName}*\n` +
-          `📄 Pages: ${analysis.pageCount}\n` +
-          `❓ Fields: ${analysis.fieldCount}\n` +
-          `🔢 Entries: *${entries}*\n\n` +
-          `💳 *Price Breakdown*\n` +
-          `━━━━━━━━━━━━━━━━━━\n` +
-          `Per submission: *${price.formatted}*\n` +
-          `   ├ Base: ${price.basePrice} UZS\n` +
-          `   ${complexityConnector} Complexity fee: +${price.fieldSurcharge} UZS` +
-          discountLine +
-          `\n\n× ${entries} entries\n` +
-          `🏷 *Total: ${price.totalFormatted}*`,
+        this.t.t('new_job.order_summary', l, {
+          name: ctx.session.jobName!,
+          pages: String(analysis.pageCount),
+          fields: String(analysis.fieldCount),
+          entries: String(entries),
+          price: price.formatted,
+          base: String(price.basePrice),
+          connector,
+          surcharge: String(price.fieldSurcharge),
+          discount: discountLine,
+          total: price.totalFormatted,
+        }),
         {
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
-            [Markup.button.callback('✅ Confirm & Pay', 'job_confirm')],
-            [Markup.button.callback('✏️ Change Entries', 'job_change_entries')],
-            [Markup.button.callback('🚫 Cancel', 'job_cancel_create')],
+            [
+              Markup.button.callback(
+                this.t.t('new_job.btn_confirm', l),
+                'job_confirm',
+              ),
+            ],
+            [
+              Markup.button.callback(
+                this.t.t('new_job.btn_change_entries', l),
+                'job_change_entries',
+              ),
+            ],
+            [
+              Markup.button.callback(
+                this.t.t('new_job.btn_cancel', l),
+                'job_cancel_create',
+              ),
+            ],
           ]),
         },
       );
@@ -294,20 +320,20 @@ export class NewJobScene {
         ctx.chat!.id,
         calculating.message_id,
         undefined,
-        `❌ *Something went wrong while calculating the price.*\n\nPlease try again:`,
+        this.t.t('new_job.price_error', l),
         { parse_mode: 'Markdown' },
       );
-      // stay on step 4, user can re-enter entry count
     }
   }
 
-  // ─── Order actions ───────────────────────────────────────────────────────────
-
   @Action('job_change_entries')
   async onChangeEntries(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
     await ctx.answerCbQuery();
     await ctx.editMessageText(
-      `✏️ *Change entries*\n\nEnter a new number from 1 to ${MAX_ENTRIES}:\n\n_More entries = better loyalty discount 🎁_`,
+      this.t.t('new_job.change_entries_prompt', l, {
+        max: String(MAX_ENTRIES),
+      }),
       { parse_mode: 'Markdown' },
     );
     ctx.wizard.selectStep(4);
@@ -315,7 +341,8 @@ export class NewJobScene {
 
   @Action('job_confirm')
   async onConfirm(@Ctx() ctx: BotContext) {
-    await ctx.answerCbQuery('⏳ Creating job...');
+    const l = this.lang(ctx);
+    await ctx.answerCbQuery('⏳');
 
     try {
       const job = await this.jobService.createJob({
@@ -334,25 +361,29 @@ export class NewJobScene {
       clearJobSession(ctx);
 
       await ctx.editMessageText(
-        `🎉 *Submission Created!*\n\n` +
-          `📝 *${job.name}*\n` +
-          `🔢 Entries: ${job.entries}\n` +
-          `💰 Charged: *${totalPrice}*\n\n` +
-          `_Your job is queued and will start shortly._`,
+        this.t.t('new_job.job_created', l, {
+          name: job.name,
+          entries: String(job.entries),
+          total: totalPrice ?? '—',
+        }),
         {
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
-            [Markup.button.callback('▶️ Run Now', `job_run:${job.id}`)],
+            [
+              Markup.button.callback(
+                this.t.t('new_job.btn_run_now', l),
+                `job_run:${job.id}`,
+              ),
+            ],
           ]),
         },
       );
     } catch (e) {
       this.logger.error(e);
-      await ctx.answerCbQuery('❌ Failed to create job');
-      await ctx.reply(
-        `❌ *Failed to create the job.*\n\nYour balance has not been charged. Please try again.`,
-        { parse_mode: 'Markdown' },
-      );
+      await ctx.answerCbQuery('❌');
+      await ctx.reply(this.t.t('new_job.job_failed', l), {
+        parse_mode: 'Markdown',
+      });
     }
 
     await ctx.scene.leave();
@@ -360,9 +391,10 @@ export class NewJobScene {
 
   @Action('job_cancel_create')
   async onCancelCreate(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
     await ctx.answerCbQuery();
     clearJobSession(ctx);
-    await ctx.editMessageText('🚫 Cancelled.');
+    await ctx.editMessageText(this.t.t('new_job.cancelled', l));
     await ctx.scene.enter(SCENES.DASHBOARD);
   }
 }
