@@ -24,5 +24,8 @@
   "btn_confirm": "✅ Confirm & Pay",
   "btn_change_entries": "✏️ Change Entries",
   "btn_cancel": "🚫 Cancel",
-  "btn_run_now": "▶️ Run Now"
+  "btn_run_now": "▶️ Run Now",
+  "progress": "⚙️ *Job #{id} running...*\n\n{bar} {percent}%\n🔢 {done}/{total} entries submitted",
+  "completed": "✅ *Job #{id} \"{name}\" completed!*\n\n🔢 {done}/{total} entries submitted.",
+  "failed": "❌ *Job #{id} failed!*"
 }

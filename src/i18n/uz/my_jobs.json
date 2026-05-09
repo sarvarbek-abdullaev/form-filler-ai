@@ -1,0 +1,15 @@
+{
+  "empty": "📭 *Hali yuborishlar yo'q*\n\nBirinchi avtoto'ldirishni boshlang — natijalar shu yerda ko'rinadi.",
+  "title": "📋 *Yuborishlaringiz* ({total}) — Sahifa {page}/{totalPages}",
+  "section_active": "*🔄 Faol*",
+  "section_done": "*✔️ Yakunlangan*",
+  "status_pending": "Kutilmoqda",
+  "status_running": "Bajarilmoqda",
+  "status_paused": "To'xtatilgan",
+  "status_done": "Tayyor",
+  "status_failed": "Xato",
+  "status_cancelled": "Bekor qilindi",
+  "btn_prev": "◀️ Oldingi",
+  "btn_next": "▶️ Keyingi",
+  "btn_back": "⬅️ Orqaga"
+}

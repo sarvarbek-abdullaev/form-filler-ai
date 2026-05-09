@@ -24,5 +24,8 @@
   "btn_confirm": "✅ Tasdiqlash va to'lash",
   "btn_change_entries": "✏️ Yozuvlarni o'zgartirish",
   "btn_cancel": "🚫 Bekor qilish",
-  "btn_run_now": "▶️ Hozir ishga tushirish"
+  "btn_run_now": "▶️ Hozir ishga tushirish",
+  "progress": "⚙️ *Vazifa #{id} bajarilmoqda...*\n\n{bar} {percent}%\n🔢 {done}/{total} yozuv yuborildi",
+  "completed": "✅ *Vazifa #{id} \"{name}\" yakunlandi!*\n\n🔢 {done}/{total} yozuv yuborildi.",
+  "failed": "❌ *Vazifa #{id} muvaffaqiyatsiz tugadi!*"
 }

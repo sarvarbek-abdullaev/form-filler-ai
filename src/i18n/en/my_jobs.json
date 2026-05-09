@@ -1,0 +1,15 @@
+{
+  "empty": "📭 *No submissions yet*\n\nStart your first auto-fill and results will appear here.",
+  "title": "📋 *Your Submissions* ({total}) — Page {page}/{totalPages}",
+  "section_active": "*🔄 Active*",
+  "section_done": "*✔️ Completed*",
+  "status_pending": "Pending",
+  "status_running": "Running",
+  "status_paused": "Paused",
+  "status_done": "Done",
+  "status_failed": "Failed",
+  "status_cancelled": "Cancelled",
+  "btn_prev": "◀️ Prev",
+  "btn_next": "▶️ Next",
+  "btn_back": "⬅️ Back"
+}

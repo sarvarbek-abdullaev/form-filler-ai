@@ -125,10 +125,6 @@ Return ONLY valid JSON, no markdown:
         const entryId = Number(rawKey);
         const field = fieldMap.get(entryId);
 
-        this.logger.debug(
-          `Field ${entryId} type: ${field?.type}, value: "${value}"`,
-        );
-
         if (!field) {
           this.logger.warn(`Unknown entryId ${entryId} in response, skipping`);
           continue;

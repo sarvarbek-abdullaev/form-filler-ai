@@ -8,12 +8,14 @@ import { JobController } from './job.controller';
 import { FormSubmitterService } from '../form-submitter';
 import { FormAnalyzerService } from '../form-analyzer';
 import { FormResponseGeneratorModule } from '../form-response-generator';
+import { TranslateModule } from '../translate';
 
 @Module({
   imports: [
     BullModule.registerQueue({ name: 'form-filler' }),
     UserModule,
     FormResponseGeneratorModule,
+    TranslateModule,
   ],
   controllers: [JobController],
   providers: [

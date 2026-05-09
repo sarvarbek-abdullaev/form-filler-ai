@@ -6,13 +6,14 @@ import { Telegraf } from 'telegraf';
 import { JobService } from './job.service';
 import { PrismaService } from '../../common';
 import { UserService } from '../user';
+import { TranslateService } from '../translate';
 import { botConfig } from '../telegram/config';
 import type { BotContext } from '../telegram/interfaces';
 import { JobStatus } from '../../../generated/prisma/enums';
 import { FormAnalyzerService } from '../form-analyzer';
 import { FormSubmitterService } from '../form-submitter';
 
-const PROGRESS_UPDATE_EVERY = 10; // update every 10 submissions
+const PROGRESS_UPDATE_EVERY = 10;
 
 @Processor('form-filler', { concurrency: 2 })
 export class FormFillerProcessor extends WorkerHost {
@@ -24,6 +25,7 @@ export class FormFillerProcessor extends WorkerHost {
     private readonly userService: UserService,
     private readonly formAnalyzerService: FormAnalyzerService,
     private readonly formSubmitterService: FormSubmitterService,
+    private readonly t: TranslateService,
     @InjectBot(botConfig.NAME) private readonly bot: Telegraf<BotContext>,
   ) {
     super();
@@ -66,12 +68,13 @@ export class FormFillerProcessor extends WorkerHost {
       throw new Error(`No telegram account for user ${dbJob.userId}`);
 
     const telegramId = account.providerId;
+    const locale = (dbJob.user.locale ?? 'en') as 'en' | 'ru' | 'uz';
 
     await this.jobService.updateStatus(+jobId, JobStatus.RUNNING);
 
     const progressMsg = await this.bot.telegram.sendMessage(
       telegramId,
-      this.formatProgress(+jobId, startFrom, dbJob.entries),
+      this.formatProgress(+jobId, startFrom, dbJob.entries, locale),
       { parse_mode: 'Markdown' },
     );
 
@@ -97,7 +100,7 @@ export class FormFillerProcessor extends WorkerHost {
               telegramId,
               progressMsg.message_id,
               undefined,
-              this.formatProgress(+jobId, total, dbJob.entries),
+              this.formatProgress(jobId, total, dbJob.entries, locale),
               { parse_mode: 'Markdown' },
             );
           }
@@ -111,13 +114,18 @@ export class FormFillerProcessor extends WorkerHost {
         telegramId,
         progressMsg.message_id,
         undefined,
-        this.formatProgress(+jobId, dbJob.entries, dbJob.entries),
+        this.formatProgress(jobId, dbJob.entries, dbJob.entries, locale),
         { parse_mode: 'Markdown' },
       );
 
       await this.bot.telegram.sendMessage(
         telegramId,
-        `✅ *Job #${jobId} "${dbJob.name}" completed!*\n\n🔢 ${dbJob.entries}/${dbJob.entries} entries submitted.`,
+        this.t.t('new_job.completed', locale, {
+          id: String(jobId),
+          name: dbJob.name,
+          done: String(dbJob.entries),
+          total: String(dbJob.entries),
+        }),
         { parse_mode: 'Markdown' },
       );
     } catch (error) {
@@ -126,7 +134,7 @@ export class FormFillerProcessor extends WorkerHost {
 
       await this.bot.telegram.sendMessage(
         telegramId,
-        `❌ *Job #${jobId} failed!*`,
+        this.t.t('new_job.failed', locale, { id: String(jobId) }),
         { parse_mode: 'Markdown' },
       );
 
@@ -134,15 +142,22 @@ export class FormFillerProcessor extends WorkerHost {
     }
   }
 
-  private formatProgress(jobId: number, done: number, total: number): string {
+  private formatProgress(
+    jobId: number,
+    done: number,
+    total: number,
+    locale: 'en' | 'ru' | 'uz',
+  ): string {
     const percent = Math.round((done / total) * 100);
     const filled = Math.round(percent / 10);
     const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
 
-    return (
-      `⚙️ *Job #${jobId} running...*\n\n` +
-      `${bar} ${percent}%\n` +
-      `🔢 ${done}/${total} entries submitted`
-    );
+    return this.t.t('new_job.progress', locale, {
+      id: String(jobId),
+      bar,
+      percent: String(percent),
+      done: String(done),
+      total: String(total),
+    });
   }
 }

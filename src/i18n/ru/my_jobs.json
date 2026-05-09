@@ -1,0 +1,15 @@
+{
+  "empty": "📭 *Заявок пока нет*\n\nЗапустите первое автозаполнение — результаты появятся здесь.",
+  "title": "📋 *Ваши заявки* ({total}) — Страница {page}/{totalPages}",
+  "section_active": "*🔄 Активные*",
+  "section_done": "*✔️ Завершённые*",
+  "status_pending": "Ожидание",
+  "status_running": "Выполняется",
+  "status_paused": "Пауза",
+  "status_done": "Готово",
+  "status_failed": "Ошибка",
+  "status_cancelled": "Отменено",
+  "btn_prev": "◀️ Предыдущая",
+  "btn_next": "▶️ Следующая",
+  "btn_back": "⬅️ Назад"
+}
