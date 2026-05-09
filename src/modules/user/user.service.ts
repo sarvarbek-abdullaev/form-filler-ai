@@ -57,6 +57,9 @@ export class UserService {
   async findAccountByUserId(userId: number) {
     return this.prisma.account.findFirst({
       where: { userId, provider: 'telegram' },
+      include: {
+        user: true,
+      },
     });
   }
 

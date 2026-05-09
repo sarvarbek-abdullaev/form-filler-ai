@@ -13,15 +13,13 @@ import { UserModule } from '../user';
 import { BalanceModule } from '../balance';
 import { FormAnalyzerModule } from '../form-analyzer';
 import { JobModule } from '../job';
+import { TranslateModule } from '../translate';
 
 @Module({
   imports: [
     TelegrafModule.forRootAsync({
       botName: botConfig.NAME,
-      imports: [
-        ConfigModule,
-        // , TranslateModule
-      ],
+      imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService<IAppConfig>) => ({
         token: config.getOrThrow('telegramBotToken', { infer: true }),
@@ -33,6 +31,7 @@ import { JobModule } from '../job';
     BalanceModule,
     FormAnalyzerModule,
     JobModule,
+    TranslateModule,
   ],
   providers: [
     TelegramService,

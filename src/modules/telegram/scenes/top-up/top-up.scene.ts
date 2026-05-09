@@ -6,11 +6,9 @@ import type { BotContext } from '../../interfaces';
 import { SCENES } from '../../config';
 import { BalanceService } from '../../../balance';
 import { IAppConfig } from '../../../../common';
-import { UserService } from '../../../user';
+import { TranslateService } from '../../../translate';
 
 const MIN_AMOUNT = 5_000;
-
-const getBackKeyboard = () => Markup.keyboard([['⬅️ Back']]).resize();
 
 @Wizard(SCENES.TOP_UP)
 export class TopUpScene {
@@ -20,8 +18,8 @@ export class TopUpScene {
 
   constructor(
     private readonly balanceService: BalanceService,
-    private readonly userService: UserService,
     private readonly configService: ConfigService<IAppConfig>,
+    private readonly t: TranslateService,
   ) {
     this.cardNumber = this.configService.getOrThrow('cardNumber', {
       infer: true,
@@ -31,15 +29,25 @@ export class TopUpScene {
     });
   }
 
+  private lang(ctx: BotContext) {
+    return ctx.session.locale ?? ctx.from?.language_code ?? 'en';
+  }
+
+  private getBackKeyboard(ctx: BotContext) {
+    const l = this.lang(ctx);
+    return Markup.keyboard([[this.t.t('top_up.btn_back', l)]]).resize();
+  }
+
   @WizardStep(1)
   async askAmount(@Ctx() ctx: BotContext) {
-    await ctx.reply(
-      `💳 *Top Up Balance*\n\n` +
-        `Transfer any amount to this card:\n\n` +
-        `\`${this.cardNumber}\`\n\n` +
-        `Then enter the amount you transferred below _(min. ${MIN_AMOUNT.toLocaleString()} UZS)_:`,
+    const l = this.lang(ctx);
 
-      { parse_mode: 'Markdown', ...getBackKeyboard() },
+    await ctx.reply(
+      this.t.t('top_up.ask_amount', l, {
+        card: this.cardNumber,
+        min: MIN_AMOUNT.toLocaleString(),
+      }),
+      { parse_mode: 'Markdown', ...this.getBackKeyboard(ctx) },
     );
 
     ctx.wizard.next();
@@ -47,10 +55,11 @@ export class TopUpScene {
 
   @WizardStep(2)
   async validateAmount(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
     const text =
       ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
 
-    if (text === '⬅️ Back') {
+    if (text === this.t.t('top_up.btn_back', l)) {
       await ctx.scene.enter(SCENES.DASHBOARD);
       return;
     }
@@ -58,7 +67,7 @@ export class TopUpScene {
     const amount = Number(text.replace(/[\s,]/g, ''));
 
     if (!amount || isNaN(amount) || amount <= 0) {
-      await ctx.reply('❌ Please enter a valid number.\n\nExample: `50000`', {
+      await ctx.reply(this.t.t('top_up.invalid_amount', l), {
         parse_mode: 'Markdown',
       });
       return;
@@ -66,7 +75,9 @@ export class TopUpScene {
 
     if (amount < MIN_AMOUNT) {
       await ctx.reply(
-        `❌ Minimum top-up is *${MIN_AMOUNT.toLocaleString()} UZS*. Please enter a larger amount:`,
+        this.t.t('top_up.amount_too_low', l, {
+          min: MIN_AMOUNT.toLocaleString(),
+        }),
         { parse_mode: 'Markdown' },
       );
       return;
@@ -75,17 +86,17 @@ export class TopUpScene {
     ctx.session.topUpAmount = amount;
 
     await ctx.reply(
-      `📸 *Almost done!*\n\n` +
-        `Send a screenshot confirming your transfer of *${amount.toLocaleString()} UZS*.\n\n` +
-        `_Make sure the amount and card number are visible._`,
-      { parse_mode: 'Markdown', ...getBackKeyboard() },
+      this.t.t('top_up.ask_screenshot', l, { amount: amount.toLocaleString() }),
+      { parse_mode: 'Markdown', ...this.getBackKeyboard(ctx) },
     );
+
     ctx.wizard.next();
   }
 
   @WizardStep(3)
   @On('photo')
   async handleScreenshot(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
     const photos =
       ctx.message && 'photo' in ctx.message ? ctx.message.photo : [];
     const fileId = photos[photos.length - 1].file_id;
@@ -103,6 +114,7 @@ export class TopUpScene {
         `User ${ctx.session.name} submitted top-up #${transaction.id} for ${amount} UZS`,
       );
 
+      // admin message stays in English
       await ctx.telegram.sendPhoto(this.adminGroupId, fileId, {
         caption:
           `🔔 <b>Top Up Request #${transaction.id}</b>\n\n` +
@@ -127,14 +139,14 @@ export class TopUpScene {
       ctx.session.topUpAmount = undefined;
 
       await ctx.reply(
-        `⏳ *Request received!*\n\n` +
-          `Your top-up of *${amount.toLocaleString()} UZS* is under review.\n` +
-          `We'll notify you once it's confirmed — usually within a few minutes.`,
+        this.t.t('top_up.request_received', l, {
+          amount: amount.toLocaleString(),
+        }),
         { parse_mode: 'Markdown' },
       );
     } catch (error) {
       this.logger.error(error);
-      await ctx.reply('❌ Something went wrong. Please try again with /start');
+      await ctx.reply(this.t.t('top_up.error', l));
     }
 
     await ctx.scene.enter(SCENES.DASHBOARD);
@@ -142,18 +154,18 @@ export class TopUpScene {
 
   @WizardStep(3)
   async handleNonPhoto(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
     const text =
       ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
 
-    if (text === '⬅️ Back') {
+    if (text === this.t.t('top_up.btn_back', l)) {
       ctx.session.topUpAmount = undefined;
       await ctx.scene.enter(SCENES.DASHBOARD);
       return;
     }
 
-    await ctx.reply(
-      `📸 Please send a *screenshot* of your transfer.\n\n_Text messages won't work here — attach a photo._`,
-      { parse_mode: 'Markdown' },
-    );
+    await ctx.reply(this.t.t('top_up.send_photo', l), {
+      parse_mode: 'Markdown',
+    });
   }
 }

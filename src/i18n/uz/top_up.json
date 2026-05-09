@@ -1,0 +1,12 @@
+{
+  "ask_amount": "💳 *Balansni to'ldirish*\n\nIstalgan miqdorni ushbu kartaga o'tkazing:\n\n`{card}`\n\nKeyin o'tkazgan summasini kiriting _(min. {min} UZS)_:",
+  "invalid_amount": "❌ Iltimos, to'g'ri raqam kiriting.\n\nMisol: `50000`",
+  "amount_too_low": "❌ Minimal to'ldirish — *{min} UZS*. Kattaroq summa kiriting:",
+  "ask_screenshot": "📸 *Deyarli tugadi!*\n\n*{amount} UZS* o'tkazmasini tasdiqlovchi skrinshot yuboring.\n\n_Summa va karta raqami ko'rinib turishiga ishonch hosil qiling._",
+  "request_received": "⏳ *So'rov qabul qilindi!*\n\n*{amount} UZS* to'ldirishingiz ko'rib chiqilmoqda.\nTasdiqlangandan so'ng sizga xabar beramiz — odatda bir necha daqiqa ichida.",
+  "send_photo": "📸 Iltimos, o'tkazma *skrinshotini* yuboring.\n\n_Matnli xabarlar bu yerda ishlamaydi — rasm biriktiring._",
+  "error": "❌ Nimadir xato ketdi. /start bilan qayta urinib ko'ring",
+  "btn_back": "⬅️ Orqaga",
+  "approved": "✅ *{amount} UZS* miqdoridagi to'ldirishingiz tasdiqlandi! Mablag' balansingizga qo'shildi.",
+  "rejected": "❌ *{amount} UZS* miqdoridagi to'ldirishingiz rad etildi. Agar bu xato deb hisoblasangiz, iltimos, qo'llab-quvvatlash xizmatimiz bilan bog'laning."
+}

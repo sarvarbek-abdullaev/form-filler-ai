@@ -17,6 +17,7 @@ import { AdminGuard } from '../decorators/admin.decorator';
 import { JobService } from '../../job';
 import { Markup } from 'telegraf';
 import { BalanceGuard } from '../guards';
+import { TranslateService } from '../../translate';
 
 @Public()
 @Update()
@@ -27,7 +28,24 @@ export class TelegramUpdate {
     private readonly userService: UserService,
     private readonly balanceService: BalanceService,
     private readonly jobService: JobService,
+    private readonly t: TranslateService,
   ) {}
+
+  private lang(ctx: BotContext) {
+    return ctx.session.locale ?? ctx.from?.language_code ?? 'en';
+  }
+
+  private restoreSession(
+    ctx: BotContext,
+    account: Awaited<ReturnType<UserService['findAccountByTelegram']>>,
+  ) {
+    if (!account) return;
+    ctx.session.userId = account.user.id;
+    ctx.session.name = account.user.name ?? undefined;
+    ctx.session.phone = account.user.phone;
+    ctx.session.locale =
+      (account.user.locale as 'en' | 'ru' | 'uz') ?? this.lang(ctx);
+  }
 
   @Start()
   async start(ctx: BotContext) {
@@ -39,21 +57,23 @@ export class TelegramUpdate {
       );
 
       if (account) {
-        ctx.session.userId = account.user.id;
-        ctx.session.name = account.user.name ?? undefined;
-        ctx.session.phone = account.user.phone;
-
-        await ctx.reply('👋 Welcome back!');
+        this.restoreSession(ctx, account);
+        const l = this.lang(ctx);
+        await ctx.reply(
+          this.t.t('common.welcome_back', l, { name: ctx.session.name ?? '' }),
+        );
         await ctx.scene.enter(SCENES.DASHBOARD);
         return;
       }
     } else {
-      await ctx.reply('👋 Welcome back!');
+      const l = this.lang(ctx);
+      await ctx.reply(
+        this.t.t('common.welcome_back', l, { name: ctx.session.name ?? '' }),
+      );
       await ctx.scene.enter(SCENES.DASHBOARD);
       return;
     }
 
-    await ctx.reply('👋 Welcome! Please register to continue.');
     await ctx.scene.enter(SCENES.AUTH);
   }
 
@@ -66,10 +86,7 @@ export class TelegramUpdate {
       );
 
       if (account) {
-        ctx.session.userId = account.user.id;
-        ctx.session.name = account.user.name ?? undefined;
-        ctx.session.phone = account.user.phone ?? undefined;
-
+        this.restoreSession(ctx, account);
         await ctx.scene.enter(SCENES.DASHBOARD);
         return;
       }
@@ -106,9 +123,12 @@ export class TelegramUpdate {
     );
 
     if (account) {
+      const locale = (account.user.locale ?? 'en') as 'en' | 'ru' | 'uz';
+      const amount = Number(transaction.amount).toLocaleString();
+
       await ctx.telegram.sendMessage(
         account.providerId,
-        `✅ Your top up of *${Number(transaction.amount).toLocaleString()} UZS* has been approved!`,
+        this.t.t('top_up.approved', locale, { amount }),
         { parse_mode: 'Markdown' },
       );
     }
@@ -116,18 +136,10 @@ export class TelegramUpdate {
     await ctx.telegram.callApi('setMessageReaction', {
       chat_id: ctx.chat!.id,
       message_id: ctx.callbackQuery?.message!.message_id,
-      reaction: [
-        {
-          type: 'emoji',
-          emoji: '👍',
-        },
-      ],
+      reaction: [{ type: 'emoji', emoji: '👍' }],
     });
 
-    await ctx.editMessageReplyMarkup({
-      inline_keyboard: [],
-    });
-
+    await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
     await ctx.answerCbQuery('✅ Approved');
   }
 
@@ -139,7 +151,7 @@ export class TelegramUpdate {
     const data = ctx.callbackQuery.data;
     const transactionId = data.split(':')[1];
 
-    const transaction = await this.balanceService.approveTopUp(
+    const transaction = await this.balanceService.rejectTopUp(
       Number(transactionId),
     );
 
@@ -153,9 +165,12 @@ export class TelegramUpdate {
     );
 
     if (account) {
+      const locale = (account.user.locale ?? 'en') as 'en' | 'ru' | 'uz';
+      const amount = Number(transaction.amount).toLocaleString();
+
       await ctx.telegram.sendMessage(
         account.providerId,
-        `❌ Your top up of *${Number(transaction.amount).toLocaleString()} UZS* has been rejected. Please contact support.`,
+        this.t.t('top_up.rejected', locale, { amount }),
         { parse_mode: 'Markdown' },
       );
     }
@@ -163,18 +178,10 @@ export class TelegramUpdate {
     await ctx.telegram.callApi('setMessageReaction', {
       chat_id: ctx.chat!.id,
       message_id: ctx.callbackQuery?.message!.message_id,
-      reaction: [
-        {
-          type: 'emoji',
-          emoji: '👎',
-        },
-      ],
+      reaction: [{ type: 'emoji', emoji: '👎' }],
     });
 
-    await ctx.editMessageReplyMarkup({
-      inline_keyboard: [],
-    });
-
+    await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
     await ctx.answerCbQuery('❌ Rejected');
   }
 

@@ -1,0 +1,12 @@
+{
+  "ask_amount": "💳 *Top Up Balance*\n\nTransfer any amount to this card:\n\n`{card}`\n\nThen enter the amount you transferred below _(min. {min} UZS)_:",
+  "invalid_amount": "❌ Please enter a valid number.\n\nExample: `50000`",
+  "amount_too_low": "❌ Minimum top-up is *{min} UZS*. Please enter a larger amount:",
+  "ask_screenshot": "📸 *Almost done!*\n\nSend a screenshot confirming your transfer of *{amount} UZS*.\n\n_Make sure the amount and card number are visible._",
+  "request_received": "⏳ *Request received!*\n\nYour top-up of *{amount} UZS* is under review.\nWe'll notify you once it's confirmed — usually within a few minutes.",
+  "send_photo": "📸 Please send a *screenshot* of your transfer.\n\n_Text messages won't work here — attach a photo._",
+  "error": "❌ Something went wrong. Please try again with /start",
+  "btn_back": "⬅️ Back",
+  "approved": "✅ Your top up of *{amount} UZS* has been approved! The funds have been added to your balance.",
+  "rejected": "❌ Your top up of *{amount} UZS* has been rejected. If you believe this is a mistake, please contact our support team."
+}
