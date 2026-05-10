@@ -50,6 +50,9 @@ export class UserService {
         accounts: {
           create: { provider: 'telegram', providerId: telegramId },
         },
+        balance: {
+          create: { amount: 0 },
+        },
       },
     });
   }
@@ -88,7 +91,14 @@ export class UserService {
 
   async createUser(data: Prisma.UserCreateInput): Promise<User> {
     return this.prisma.user.create({
-      data,
+      data: {
+        ...data,
+        balance: {
+          create: {
+            amount: 0,
+          },
+        },
+      },
     });
   }
 
