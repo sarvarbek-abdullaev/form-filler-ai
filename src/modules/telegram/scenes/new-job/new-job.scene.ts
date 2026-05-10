@@ -23,20 +23,6 @@ const clearJobSession = (ctx: BotContext) => {
   ctx.session.jobPricePerEntry = undefined;
 };
 
-const getEntriesKeyboard = (formAnalyzerService: FormAnalyzerService) => {
-  const presets = [10, 25, 50, 75, 100];
-  const buttons = presets.map((e) => {
-    const discount = formAnalyzerService.getLoyaltyDiscountPercent(e);
-    return discount > 0 ? `${e} (-${discount}%)` : `${e}`;
-  });
-  return Markup.keyboard([
-    buttons.slice(0, 2),
-    buttons.slice(2, 4),
-    [buttons[4]],
-    ['⬅️ Back'],
-  ]).resize();
-};
-
 const parseEntryText = (text: string): number => {
   const match = text.match(/^(\d+)/);
   return match ? parseInt(match[1], 10) : NaN;
@@ -64,6 +50,23 @@ export class NewJobScene extends BaseScene {
     return Markup.keyboard([[this.t.t('new_job.btn_back', l)]]).resize();
   }
 
+  private getEntriesInlineKeyboard() {
+    const presets = [10, 25, 50, 75, 100];
+    const buttons = presets.map((e) => {
+      const discount = this.formAnalyzerService.getLoyaltyDiscountPercent(e);
+      const label = discount > 0 ? `${e} (-${discount}%)` : `${e}`;
+      return Markup.button.callback(label, `job_entries:${e}`);
+    });
+    return Markup.inlineKeyboard([
+      buttons.slice(0, 2),
+      buttons.slice(2, 4),
+      [buttons[4]],
+    ]);
+  }
+
+  // ─── Step 1 ───────────────────────────────────────────────────────────────
+  // Show URL prompt. Advance to step 2 immediately.
+
   @WizardStep(1)
   async askUrl(@Ctx() ctx: BotContext) {
     const l = this.lang(ctx);
@@ -74,11 +77,16 @@ export class NewJobScene extends BaseScene {
     ctx.wizard.next();
   }
 
+  // ─── Step 2 ───────────────────────────────────────────────────────────────
+  // Receive URL text. Back → dashboard. Valid → analyze, show summary,
+  // advance to step 3.
+
   @WizardStep(2)
   async validateUrl(@Ctx() ctx: BotContext) {
+    if (!ctx.message || !('text' in ctx.message)) return;
+
     const l = this.lang(ctx);
-    const text =
-      ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
+    const text = ctx.message.text.trim();
 
     if (text === this.t.t('new_job.btn_back', l)) {
       clearJobSession(ctx);
@@ -168,9 +176,25 @@ export class NewJobScene extends BaseScene {
     }
   }
 
+  // ─── Step 3 ───────────────────────────────────────────────────────────────
+  // Waiting for inline confirm/wrong-url tap.
+  // Back (reply keyboard text) → back to URL input at step 2.
+  // All @Action handlers below advance the wizard themselves.
+
   @WizardStep(3)
   async awaitFormConfirmation(@Ctx() ctx: BotContext) {
-    await ctx.reply(this.t.t('new_job.await_confirmation', this.lang(ctx)));
+    if (!ctx.message || !('text' in ctx.message)) return;
+
+    const l = this.lang(ctx);
+
+    if (ctx.message.text.trim() === this.t.t('new_job.btn_back', l)) {
+      clearJobSession(ctx);
+      await ctx.reply(this.t.t('new_job.ask_url', l), {
+        parse_mode: 'Markdown',
+        ...this.getBackKeyboard(ctx),
+      });
+      ctx.wizard.selectStep(1);
+    }
   }
 
   @Action('job_confirm_form')
@@ -183,7 +207,7 @@ export class NewJobScene extends BaseScene {
       this.t.t('new_job.ask_entries', l, { max: String(MAX_ENTRIES) }),
       {
         parse_mode: 'Markdown',
-        ...getEntriesKeyboard(this.formAnalyzerService),
+        ...this.getEntriesInlineKeyboard(),
       },
     );
 
@@ -197,19 +221,25 @@ export class NewJobScene extends BaseScene {
     clearJobSession(ctx);
     await ctx.editMessageReplyMarkup(undefined);
 
-    await ctx.reply(this.t.t('new_job.wrong_url_prompt', l), {
+    await ctx.reply(this.t.t('new_job.ask_url', l), {
       parse_mode: 'Markdown',
       ...this.getBackKeyboard(ctx),
     });
 
-    ctx.wizard.selectStep(2);
+    ctx.wizard.selectStep(1);
   }
+
+  // ─── Step 4 ───────────────────────────────────────────────────────────────
+  // Waiting for entries — inline preset tap or typed number.
+  // Back → re-show form summary, go back to step 3.
+  // Valid entries → processEntries(), advance to step 5.
 
   @WizardStep(4)
   async validateEntries(@Ctx() ctx: BotContext) {
+    if (!ctx.message || !('text' in ctx.message)) return;
+
     const l = this.lang(ctx);
-    const text =
-      ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
+    const text = ctx.message.text.trim();
 
     if (text === this.t.t('new_job.btn_back', l)) {
       const a = ctx.session.jobAnalysis!;
@@ -258,6 +288,29 @@ export class NewJobScene extends BaseScene {
         { parse_mode: 'Markdown' },
       );
       return;
+    }
+
+    await this.processEntries(ctx, l, entries);
+  }
+
+  @Action(/^job_entries:(\d+)$/)
+  async onEntryPreset(@Ctx() ctx: BotContext) {
+    const l = this.lang(ctx);
+    await ctx.answerCbQuery();
+
+    const query = ctx.callbackQuery;
+    if (!query || !('data' in query)) return;
+
+    const match = query.data.match(/^job_entries:(\d+)$/);
+    if (!match) return;
+
+    const entries = parseInt(match[1], 10);
+    await this.processEntries(ctx, l, entries);
+  }
+
+  private async processEntries(ctx: BotContext, l: string, entries: number) {
+    if (ctx.callbackQuery?.message) {
+      await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
     }
 
     const calculating = await ctx.reply(this.t.t('new_job.calculating', l));
@@ -319,6 +372,8 @@ export class NewJobScene extends BaseScene {
           ]),
         },
       );
+
+      ctx.wizard.next();
     } catch (e) {
       this.logger.error(e);
       await ctx.telegram.editMessageText(
@@ -331,6 +386,29 @@ export class NewJobScene extends BaseScene {
     }
   }
 
+  // ─── Step 5 ───────────────────────────────────────────────────────────────
+  // Waiting for confirm/change/cancel inline taps on order summary.
+  // Back (reply keyboard text) → re-show entries prompt, go back to step 4.
+  // All @Action handlers below drive the rest of the flow.
+
+  @WizardStep(5)
+  async awaitOrderConfirmation(@Ctx() ctx: BotContext) {
+    if (!ctx.message || !('text' in ctx.message)) return;
+
+    const l = this.lang(ctx);
+
+    if (ctx.message.text.trim() === this.t.t('new_job.btn_back', l)) {
+      await ctx.reply(
+        this.t.t('new_job.ask_entries', l, { max: String(MAX_ENTRIES) }),
+        {
+          parse_mode: 'Markdown',
+          ...this.getEntriesInlineKeyboard(),
+        },
+      );
+      ctx.wizard.selectStep(4);
+    }
+  }
+
   @Action('job_change_entries')
   async onChangeEntries(@Ctx() ctx: BotContext) {
     const l = this.lang(ctx);
@@ -339,7 +417,10 @@ export class NewJobScene extends BaseScene {
       this.t.t('new_job.change_entries_prompt', l, {
         max: String(MAX_ENTRIES),
       }),
-      { parse_mode: 'Markdown' },
+      {
+        parse_mode: 'Markdown',
+        ...this.getEntriesInlineKeyboard(),
+      },
     );
     ctx.wizard.selectStep(4);
   }
