@@ -8,6 +8,7 @@ import { FormAnalyzerService } from '../../../form-analyzer';
 import { TranslateService } from '../../../translate';
 import type { BotContext } from '../../interfaces';
 import { BalanceService } from '../../../balance';
+import { BaseScene } from '../base/base.scene';
 
 const MAX_ENTRIES = 200;
 const GOOGLE_FORM_PREFIX = 'https://docs.google.com/forms';
@@ -42,7 +43,7 @@ const parseEntryText = (text: string): number => {
 };
 
 @Wizard(SCENES.NEW_JOB)
-export class NewJobScene {
+export class NewJobScene extends BaseScene {
   private readonly logger = new Logger(NewJobScene.name);
 
   constructor(
@@ -50,7 +51,9 @@ export class NewJobScene {
     private readonly formAnalyzerService: FormAnalyzerService,
     private readonly t: TranslateService,
     private readonly balanceService: BalanceService,
-  ) {}
+  ) {
+    super();
+  }
 
   private lang(ctx: BotContext) {
     return ctx.session.locale ?? ctx.from?.language_code ?? 'en';

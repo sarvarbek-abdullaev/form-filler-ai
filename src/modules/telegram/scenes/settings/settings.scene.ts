@@ -1,5 +1,13 @@
 import { UseGuards } from '@nestjs/common';
-import { Scene, SceneEnter, On, Ctx, Message, Action } from 'nestjs-telegraf';
+import {
+  Scene,
+  SceneEnter,
+  On,
+  Ctx,
+  Message,
+  Action,
+  Start,
+} from 'nestjs-telegraf';
 import { Markup } from 'telegraf';
 
 import { SCENES } from '../../config';
@@ -7,14 +15,17 @@ import { TelegramAuthGuard } from '../../guards';
 import { TranslateService } from '../../../translate';
 import type { BotContext } from '../../interfaces';
 import { UserService } from '../../../user';
+import { BaseScene } from '../base/base.scene';
 
 @UseGuards(TelegramAuthGuard)
 @Scene(SCENES.SETTINGS)
-export class SettingsScene {
+export class SettingsScene extends BaseScene {
   constructor(
     private readonly t: TranslateService,
     private readonly userService: UserService,
-  ) {}
+  ) {
+    super();
+  }
 
   private lang(ctx: BotContext) {
     return ctx.session.locale ?? ctx.from?.language_code ?? 'en';
@@ -44,8 +55,22 @@ export class SettingsScene {
     await ctx.reply(this.t.t('settings.enter', l), this.getKeyboard(ctx));
   }
 
+  @Start()
+  async start(ctx: BotContext) {
+    await super.start(ctx);
+  }
+
   @On('text')
-  async onText(@Ctx() ctx: BotContext, @Message('text') text: string) {
+  async onText(
+    @Ctx() ctx: BotContext,
+    @Message('text') text: string,
+    next: () => Promise<void>,
+  ) {
+    if (text.startsWith('/')) {
+      await super.onBaseText(ctx, text, next);
+      return;
+    }
+
     const l = this.lang(ctx);
 
     switch (text) {

@@ -1,5 +1,13 @@
 import { UseGuards } from '@nestjs/common';
-import { Scene, SceneEnter, On, Ctx, Message } from 'nestjs-telegraf';
+import {
+  Scene,
+  SceneEnter,
+  On,
+  Ctx,
+  Message,
+  Start,
+  Next,
+} from 'nestjs-telegraf';
 import { Markup } from 'telegraf';
 
 import { SCENES } from '../../config';
@@ -8,14 +16,17 @@ import { TranslateService } from '../../../translate';
 import type { BotContext } from '../../interfaces';
 import { ConfigService } from '@nestjs/config';
 import { IAppConfig } from '../../../../common';
+import { BaseScene } from '../base/base.scene';
 
 @UseGuards(TelegramAuthGuard)
 @Scene(SCENES.SUPPORT)
-export class SupportScene {
+export class SupportScene extends BaseScene {
   constructor(
     private readonly t: TranslateService,
     private readonly configService: ConfigService<IAppConfig>,
-  ) {}
+  ) {
+    super();
+  }
 
   private lang(ctx: BotContext) {
     return ctx.session.locale ?? ctx.from?.language_code ?? 'en';
@@ -39,8 +50,22 @@ export class SupportScene {
     );
   }
 
+  @Start()
+  async start(ctx: BotContext) {
+    await super.start(ctx);
+  }
+
   @On('text')
-  async onText(@Ctx() ctx: BotContext, @Message('text') text: string) {
+  async onText(
+    @Ctx() ctx: BotContext,
+    @Message('text') text: string,
+    @Next() next: () => Promise<void>,
+  ) {
+    if (text.startsWith('/')) {
+      await super.onBaseText(ctx, text, next);
+      return;
+    }
+
     const l = this.lang(ctx);
 
     switch (text) {

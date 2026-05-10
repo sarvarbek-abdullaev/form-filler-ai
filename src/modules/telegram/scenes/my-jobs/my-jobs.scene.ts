@@ -1,10 +1,11 @@
-import { Scene, SceneEnter, On, Ctx } from 'nestjs-telegraf';
+import { Scene, SceneEnter, On, Ctx, Next } from 'nestjs-telegraf';
 import { Markup } from 'telegraf';
 
 import { SCENES } from '../../config';
 import { JobService } from '../../../job';
 import { TranslateService } from '../../../translate';
 import type { BotContext } from '../../interfaces';
+import { BaseScene } from '../base/base.scene';
 
 const PAGE_SIZE = 5;
 
@@ -26,11 +27,13 @@ function buildProgressBar(percent: number): string {
 }
 
 @Scene(SCENES.MY_JOBS)
-export class MyJobsScene {
+export class MyJobsScene extends BaseScene {
   constructor(
     private readonly jobService: JobService,
     private readonly t: TranslateService,
-  ) {}
+  ) {
+    super();
+  }
 
   private lang(ctx: BotContext) {
     return ctx.session.locale ?? ctx.from?.language_code ?? 'en';
@@ -114,9 +117,13 @@ export class MyJobsScene {
   }
 
   @On('text')
-  async onText(@Ctx() ctx: BotContext) {
-    const l = this.lang(ctx);
+  async onText(@Ctx() ctx: BotContext, @Next() next: () => Promise<void>) {
     const text = ctx.message && 'text' in ctx.message ? ctx.message.text : '';
+
+    await super.onBaseText(ctx, text, next);
+    if (text.startsWith('/')) return;
+
+    const l = this.lang(ctx);
 
     if (text === this.t.t('my_jobs.btn_next', l)) {
       ctx.session.jobsPage = (ctx.session.jobsPage ?? 0) + 1;

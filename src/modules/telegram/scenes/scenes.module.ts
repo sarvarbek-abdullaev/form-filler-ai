@@ -10,7 +10,7 @@ import { JobModule } from '../../job';
 import { FormAnalyzerModule } from '../../form-analyzer';
 import { TranslateModule } from '../../translate';
 import { SettingsScene } from './settings/settings.scene';
-import { SupportScene } from './scenes/support.scene';
+import { SupportScene } from './support/support.scene';
 
 @Module({
   imports: [

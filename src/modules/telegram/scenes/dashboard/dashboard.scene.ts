@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { Scene, SceneEnter, On, Ctx, Message } from 'nestjs-telegraf';
+import { Scene, SceneEnter, On, Ctx, Message, Start } from 'nestjs-telegraf';
 import { Markup } from 'telegraf';
 
 import { SCENES } from '../../config';
@@ -7,14 +7,17 @@ import { TelegramAuthGuard } from '../../guards';
 import { BalanceService } from '../../../balance';
 import { TranslateService } from '../../../translate';
 import type { BotContext } from '../../interfaces';
+import { BaseScene } from '../base/base.scene';
 
 @UseGuards(TelegramAuthGuard)
 @Scene(SCENES.DASHBOARD)
-export class DashboardScene {
+export class DashboardScene extends BaseScene {
   constructor(
     private readonly balanceService: BalanceService,
     private readonly t: TranslateService,
-  ) {}
+  ) {
+    super();
+  }
 
   private lang(ctx: BotContext) {
     return ctx.session.locale ?? ctx.from?.language_code ?? 'en';
@@ -46,6 +49,11 @@ export class DashboardScene {
       this.t.t('dashboard.enter', this.lang(ctx)),
       this.getKeyboard(ctx),
     );
+  }
+
+  @Start()
+  async start(ctx: BotContext) {
+    await super.start(ctx);
   }
 
   @On('text')

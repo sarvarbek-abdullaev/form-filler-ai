@@ -1,4 +1,4 @@
-import { Wizard, WizardStep, On, Ctx } from 'nestjs-telegraf';
+import { Wizard, WizardStep, On, Ctx, Start } from 'nestjs-telegraf';
 import { Logger } from '@nestjs/common';
 import { Markup } from 'telegraf';
 import { ConfigService } from '@nestjs/config';
@@ -7,11 +7,12 @@ import { SCENES } from '../../config';
 import { BalanceService } from '../../../balance';
 import { IAppConfig } from '../../../../common';
 import { TranslateService } from '../../../translate';
+import { BaseScene } from '../base/base.scene';
 
 const MIN_AMOUNT = 5_000;
 
 @Wizard(SCENES.TOP_UP)
-export class TopUpScene {
+export class TopUpScene extends BaseScene {
   private readonly cardNumber: string;
   private readonly adminGroupId: string;
   private readonly logger = new Logger(TopUpScene.name);
@@ -21,6 +22,7 @@ export class TopUpScene {
     private readonly configService: ConfigService<IAppConfig>,
     private readonly t: TranslateService,
   ) {
+    super();
     this.cardNumber = this.configService.getOrThrow('cardNumber', {
       infer: true,
     });
@@ -36,6 +38,11 @@ export class TopUpScene {
   private getBackKeyboard(ctx: BotContext) {
     const l = this.lang(ctx);
     return Markup.keyboard([[this.t.t('top_up.btn_back', l)]]).resize();
+  }
+
+  @Start()
+  async start(ctx: BotContext) {
+    await super.start(ctx);
   }
 
   @WizardStep(1)
